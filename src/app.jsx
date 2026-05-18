@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-
+import { supabase } from "./supabase";
 const P = {
   bg: "#F2EDE3",
   card: "#FDFAF4",
