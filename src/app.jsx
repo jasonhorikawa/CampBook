@@ -6680,7 +6680,7 @@ function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo }) {
           notebook.
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <Btn small color={P.amber} onClick={onAdd}>
+          <Btn small color={P.amber} onClick={saveTripToSupabase}>
             + Quick Add Trip
           </Btn>
           <Btn small outline color="#F4EFE6" onClick={() => onGo("discover")}>
