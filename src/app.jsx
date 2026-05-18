@@ -1,5 +1,24 @@
 import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabase";
+async function saveTripToSupabase() {
+  const title = prompt("Campground name?");
+  if (!title) return;
+
+  const location = prompt("Location?") || "";
+
+  const { error } = await supabase.from("trips").insert([
+    {
+      title,
+      location,
+    },
+  ]);
+
+  if (error) {
+    alert("Save failed: " + error.message);
+  } else {
+    alert("Trip saved to Supabase!");
+  }
+}
 const P = {
   bg: "#F2EDE3",
   card: "#FDFAF4",
