@@ -7241,6 +7241,26 @@ export default function CampBook() {
   useEffect(() => {
     saveData(data);
   }, [data]);
+  useEffect(() => {
+  async function checkLogin() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const trips = await loadTripsFromSupabase();
+
+      if (trips.length > 0) {
+        setData((d) => ({
+          ...d,
+          entries: trips.map((t) => t.trip_data).filter(Boolean),
+        }));
+      }
+    }
+  }
+
+  checkLogin();
+}, []);
 
   const setEntries = (fn) =>
     setData((d) => ({
