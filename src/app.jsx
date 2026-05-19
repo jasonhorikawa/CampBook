@@ -1,5 +1,23 @@
 import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabase";
+async function signUp() {
+  const email = prompt("Enter email");
+  if (!email) return;
+
+  const password = prompt("Create password");
+  if (!password) return;
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    alert(error.message);
+  } else {
+    alert("Account created!");
+  }
+}
 async function saveTripToSupabase() {
   const title = prompt("Campground name?");
   if (!title) return;
