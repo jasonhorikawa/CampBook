@@ -7339,12 +7339,32 @@ export default function CampBook() {
     setTab("journal");
     setSub("edit");
   };
-  const save = (form) => {
-    if (editing?.id) update(editing.id, form);
-    else add(form);
-    setSub(null);
-    setEditing(null);
-    setTab("journal");
+  const save = async (form) => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (editing?.id) update(editing.id, form);
+  else add(form);
+
+  const { error } = await supabase.from("trips").insert([
+    {
+      title: form.campgroundName || "Untitled Trip",
+      location: form.location || "",
+      user_id: user.id,
+      trip_data: form,
+    },
+  ]);
+
+  if (error) {
+    alert("Cloud save failed: " + error.message);
+    return;
+  }
+
+  setSub(null);
+  setEditing(null);
+  setTab("journal");
+};
   };
   const cancel = () => {
     setSub(null);
