@@ -23,11 +23,14 @@ async function saveTripToSupabase() {
   if (!title) return;
 
   const location = prompt("Location?") || "";
-
+const {
+  data: { user },
+} = await supabase.auth.getUser();
   const { error } = await supabase.from("trips").insert([
     {
       title,
       location,
+      user_id: user.id,
     },
   ]);
 
