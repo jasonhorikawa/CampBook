@@ -1565,19 +1565,23 @@ const PhotoUploader = ({ photos, onChange }) => {
     if (!files.length) return;
     let done = 0;
     const batch = [];
-    files.forEach((file) => {
-      const r = new FileReader();
-      r.onload = (ev) => {
-        batch.push({
-          id: Date.now() + Math.random(),
-          url: ev.target.result,
-          name: file.name,
-        });
-        done++;
-        if (done === files.length) onChange((p) => [...p, ...batch]);
-      };
-      r.readAsDataURL(file);
-    });
+    files.forEach(async (file) => {
+  const url = await uploadTripPhoto(file);
+
+  if (!url) return;
+
+  batch.push({
+    id: Date.now() + Math.random(),
+    url,
+    name: file.name,
+  });
+
+  done++;
+
+  if (done === files.length) {
+    onChange((p) => [...p, ...batch]);
+  }
+});
     e.target.value = "";
   };
   return (
