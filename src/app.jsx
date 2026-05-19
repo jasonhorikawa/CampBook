@@ -7365,7 +7365,6 @@ export default function CampBook() {
   setEditing(null);
   setTab("journal");
 };
-  };
   const cancel = () => {
     setSub(null);
     setEditing(null);
