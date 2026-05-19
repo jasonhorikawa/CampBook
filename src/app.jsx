@@ -67,6 +67,25 @@ async function loadTripsFromSupabase() {
 
   return data;
 }
+async function uploadTripPhoto(file) {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+
+  const { error } = await supabase.storage
+    .from("trip-photos")
+    .upload(fileName, file);
+
+  if (error) {
+    alert("Upload failed: " + error.message);
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from("trip-photos")
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
 async function saveTripToSupabase() {
   const title = prompt("Campground name?");
   if (!title) return;
