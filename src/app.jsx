@@ -6704,6 +6704,13 @@ function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo }) {
           <Btn small color={P.amber} onClick={saveTripToSupabase}>
             + Quick Add Trip
           </Btn>
+          <Btn small outline color="#F4EFE6" onClick={signUp}>
+  Sign Up
+</Btn>
+
+<Btn small outline color="#F4EFE6" onClick={signIn}>
+  Sign In
+</Btn>
           <Btn small outline color="#F4EFE6" onClick={() => onGo("discover")}>
             Discover
           </Btn>
