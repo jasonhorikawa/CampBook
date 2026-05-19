@@ -18,6 +18,24 @@ async function signUp() {
     alert("Account created!");
   }
 }
+async function signIn() {
+  const email = prompt("Enter email");
+  if (!email) return;
+
+  const password = prompt("Enter password");
+  if (!password) return;
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    alert(error.message);
+  } else {
+    alert("Signed in!");
+  }
+}
 async function saveTripToSupabase() {
   const title = prompt("Campground name?");
   if (!title) return;
