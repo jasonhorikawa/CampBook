@@ -1672,7 +1672,7 @@ const PhotoUploader = ({ photos, onChange }) => {
                 <img
   src={p.url}
   alt=""
-  onClick={() => window.open(p.url, "_blank")}
+  onClick={() => setViewerPhoto(p.url)}
   style={{
     width: "100%",
     height: "100%",
@@ -3729,6 +3729,7 @@ const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
   const [lb, setLb] = useState(null);
   const [filter, setFilter] = useState("all");
   const [shareEntry, setShareEntry] = useState(null);
+  const [viewerPhoto, setViewerPhoto] = useState(null);
   const filtered = entries.filter((e) => {
     if (filter === "return") return e.returnWorthy === true;
     if (filter === "family") return e.who?.length > 1;
@@ -4301,9 +4302,34 @@ entries.forEach((e) => {
           </button>
         </div>
       )}
+    {viewerPhoto && (
+  <div
+    onClick={() => setViewerPhoto(null)}
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.9)",
+      zIndex: 9999,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16,
+    }}
+  >
+    <img
+      src={viewerPhoto}
+      alt=""
+      style={{
+        maxWidth: "100%",
+        maxHeight: "100%",
+        objectFit: "contain",
+        borderRadius: 12,
+      }}
+    />
+  </div>
+)}
     </div>
   );
-};
 
 // ── Discover ──────────────────────────────────────────────
 const DiscoverView = ({ onSelectCamp }) => {
