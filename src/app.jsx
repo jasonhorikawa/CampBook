@@ -43,7 +43,7 @@ if (trips.length > 0) {
       ...loadData(),
       entries: trips
   .map((t) => ({ ...t.trip_data, supabase_id: t.id }))
-  .filter(Boolean),,
+  .filter(Boolean),
     })
   );
 
