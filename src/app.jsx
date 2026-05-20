@@ -49,7 +49,6 @@ if (trips.length > 0) {
 }
 
 window.location.reload();
-}
   }
 }
 async function loadTripsFromSupabase() {
