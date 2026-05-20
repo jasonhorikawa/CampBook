@@ -4119,7 +4119,10 @@ entries.forEach((e) => {
                   {entry.photos.map((p) => (
                     <div
                       key={p.id}
-                      onClick={() => setLb(p.url)}
+                      onClick={() => {
+                        setViewerPhotos(entry.photos.map((x) => x.url));
+                        setViewerIndex(entry.photos.findIndex((x) => x.id === p.id));
+                      }}
                       style={{
                         aspectRatio: "1",
                         borderRadius: 7,
