@@ -7420,8 +7420,16 @@ export default function CampBook() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (editing?.id) update(editing.id, form);
-  else add(form);
+  const updatedForm = {
+  ...form,
+  supabase_id: editing?.supabase_id || form.supabase_id,
+};
+
+if (editing?.id) {
+  update(editing.id, updatedForm);
+} else {
+  add(updatedForm);
+}
 
   const { error } = await supabase.from("trips").upsert([
     {
