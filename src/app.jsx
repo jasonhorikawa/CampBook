@@ -4347,9 +4347,28 @@ entries.forEach((e) => {
     </button>
 
     <img
-      src={viewerPhotos[viewerIndex]}
-      alt=""
-      onClick={(e) => e.stopPropagation()}
+  src={viewerPhotos[viewerIndex]}
+  alt=""
+  onClick={(e) => e.stopPropagation()}
+  onTouchStart={(e) => {
+    window.touchStartX = e.touches[0].clientX;
+  }}
+  onTouchEnd={(e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = window.touchStartX - touchEndX;
+
+    if (diff > 60) {
+      setViewerIndex((i) =>
+        i < viewerPhotos.length - 1 ? i + 1 : 0
+      );
+    }
+
+    if (diff < -60) {
+      setViewerIndex((i) =>
+        i > 0 ? i - 1 : viewerPhotos.length - 1
+      );
+    }
+  }}
       style={{
         maxWidth: "100%",
         maxHeight: "100%",
