@@ -7425,11 +7425,14 @@ export default function CampBook() {
 
   const { error } = await supabase.from("trips").upsert([
     {
-      id: form.supabase_id,
+      id: editing?.supabase_id,
       title: form.campgroundName || "Untitled Trip",
       location: form.location || "",
       user_id: user.id,
-      trip_data: form,
+      trip_data: {
+      ...form,
+      supabase_id: editing?.supabase_id,
+},
     },
   ]);
 
