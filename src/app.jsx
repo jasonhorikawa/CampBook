@@ -41,7 +41,9 @@ if (trips.length > 0) {
     STORAGE_KEY,
     JSON.stringify({
       ...loadData(),
-      entries: trips.map((t) => t.trip_data).filter(Boolean),
+      entries: trips
+  .map((t) => ({ ...t.trip_data, supabase_id: t.id }))
+  .filter(Boolean),,
     })
   );
 
@@ -7425,7 +7427,7 @@ export default function CampBook() {
   supabase_id: editing?.supabase_id || form.supabase_id,
 };
 
-if (editing?.id) {
+if (editing?.id || editing?.supabase_id) {
   update(editing.id, updatedForm);
 } else {
   add(updatedForm);
