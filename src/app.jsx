@@ -4353,10 +4353,11 @@ entries.forEach((e) => {
       }}
       style={{
         position: "absolute",
-        left: 16,
+        left: 24,
         top: "50%",
         fontSize: 36,
-        background: "rgba(255,255,255,0.15)",
+        zIndex: 10001,
+        background: "rgba(0,0,0,0.75)",
         color: "#fff",
         border: "none",
         borderRadius: "50%",
@@ -4390,10 +4391,11 @@ entries.forEach((e) => {
       }}
       style={{
         position: "absolute",
-        right: 16,
+        zIndex: 10000,
+        right: 24,
         top: "50%",
         fontSize: 36,
-        background: "rgba(0,0,0,0.65)",
+        background: "rgba(0,0,0,0.75)",
         color: "#fff",
         border: "none",
         borderRadius: "50%",
