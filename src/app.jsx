@@ -1670,10 +1670,16 @@ const PhotoUploader = ({ photos, onChange }) => {
                 }}
               >
                 <img
-                  src={p.url}
-                  alt=""
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
+  src={p.url}
+  alt=""
+  onClick={() => window.open(p.url, "_blank")}
+  style={{
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    cursor: "pointer",
+  }}
+/>
                 <button
                   onClick={() =>
                     onChange((prev) => prev.filter((x) => x.id !== p.id))
