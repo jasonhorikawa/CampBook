@@ -4371,25 +4371,7 @@ entries.forEach((e) => {
   src={viewerPhotos[viewerIndex]}
   alt=""
   onClick={(e) => e.stopPropagation()}
-  onTouchStart={(e) => {
-    window.touchStartX = e.touches[0].clientX;
-  }}
-  onTouchEnd={(e) => {
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = window.touchStartX - touchEndX;
-
-    if (diff > 60) {
-      setViewerIndex((i) =>
-        i < viewerPhotos.length - 1 ? i + 1 : 0
-      );
-    }
-
-    if (diff < -60) {
-      setViewerIndex((i) =>
-        i > 0 ? i - 1 : viewerPhotos.length - 1
-      );
-    }
-  }}
+  
       style={{
         maxWidth: "100%",
         maxHeight: "100%",
@@ -4411,7 +4393,7 @@ entries.forEach((e) => {
         right: 16,
         top: "50%",
         fontSize: 36,
-        background: "rgba(255,255,255,0.15)",
+        background: "rgba(0,0,0,0.65)",
         color: "#fff",
         border: "none",
         borderRadius: "50%",
