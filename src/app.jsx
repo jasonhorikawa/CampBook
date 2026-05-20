@@ -3755,8 +3755,15 @@ const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
             (e) => e.returnWorthy === true
           ).length;
           const uniqueCamps = new Set(
-            entries.map((e) => e.campgroundName).filter(Boolean)
-          ).size;
+  entries.map((e) => e.campgroundName).filter(Boolean)
+).size;
+
+const latestPhotoByCamp = {};
+entries.forEach((e) => {
+  if (e.photos?.[0]?.url) {
+    latestPhotoByCamp[e.campgroundName] = e.photos[0].url;
+  }
+});
           return (
             <div
               style={{
