@@ -4335,7 +4335,6 @@ entries.forEach((e) => {
     position: "fixed",
     inset: 0,
     touchAction: "pan-y",
-    );
   }
 }}
     style={{
