@@ -7276,7 +7276,9 @@ export default function CampBook() {
       if (trips.length > 0) {
         setData((d) => ({
           ...d,
-          entries: trips.map((t) => t.trip_data).filter(Boolean),
+          entries: trips
+          .map((t) => ({ ...t.trip_data, supabase_id: t.id }))
+          .filter(Boolean),
         }));
       }
     }
@@ -7421,8 +7423,9 @@ export default function CampBook() {
   if (editing?.id) update(editing.id, form);
   else add(form);
 
-  const { error } = await supabase.from("trips").insert([
+  const { error } = await supabase.from("trips").upsert([
     {
+      id: form.supabase_id,
       title: form.campgroundName || "Untitled Trip",
       location: form.location || "",
       user_id: user.id,
