@@ -4331,13 +4331,9 @@ entries.forEach((e) => {
       );
     }
   }
-  style={{
-    position: "fixed",
-    inset: 0,
-    touchAction: "pan-y",
-  }
 }
     style={{
+      touchAction: "pan-y",
       position: "fixed",
       inset: 0,
       background: "rgba(0,0,0,0.92)",
