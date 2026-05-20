@@ -1672,7 +1672,10 @@ const PhotoUploader = ({ photos, onChange }) => {
                 <img
   src={p.url}
   alt=""
-  onClick={() => setViewerPhoto(p.url)}
+  onClick={() => {
+  setViewerPhotos(photos.map((x) => x.url));
+  setViewerIndex(photos.findIndex((x) => x.id === p.id));
+}}
   style={{
     width: "100%",
     height: "100%",
@@ -3729,7 +3732,8 @@ const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
   const [lb, setLb] = useState(null);
   const [filter, setFilter] = useState("all");
   const [shareEntry, setShareEntry] = useState(null);
-  const [viewerPhoto, setViewerPhoto] = useState(null);
+  const [viewerPhotos, setViewerPhotos] = useState([]);
+const [viewerIndex, setViewerIndex] = useState(null);
   const filtered = entries.filter((e) => {
     if (filter === "return") return e.returnWorthy === true;
     if (filter === "family") return e.who?.length > 1;
@@ -4302,13 +4306,16 @@ entries.forEach((e) => {
           </button>
         </div>
       )}
-    {viewerPhoto && (
+    {viewerIndex !== null && (
   <div
-    onClick={() => setViewerPhoto(null)}
+    onClick={() => {
+      setViewerIndex(null);
+      setViewerPhotos([]);
+    }}
     style={{
       position: "fixed",
       inset: 0,
-      background: "rgba(0,0,0,0.9)",
+      background: "rgba(0,0,0,0.92)",
       zIndex: 9999,
       display: "flex",
       alignItems: "center",
@@ -4316,16 +4323,78 @@ entries.forEach((e) => {
       padding: 16,
     }}
   >
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setViewerIndex((i) =>
+          i > 0 ? i - 1 : viewerPhotos.length - 1
+        );
+      }}
+      style={{
+        position: "absolute",
+        left: 16,
+        top: "50%",
+        fontSize: 36,
+        background: "rgba(255,255,255,0.15)",
+        color: "#fff",
+        border: "none",
+        borderRadius: "50%",
+        width: 48,
+        height: 48,
+      }}
+    >
+      ‹
+    </button>
+
     <img
-      src={viewerPhoto}
+      src={viewerPhotos[viewerIndex]}
       alt=""
+      onClick={(e) => e.stopPropagation()}
       style={{
         maxWidth: "100%",
         maxHeight: "100%",
         objectFit: "contain",
         borderRadius: 12,
+        transition: "opacity 0.2s ease",
       }}
     />
+
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setViewerIndex((i) =>
+          i < viewerPhotos.length - 1 ? i + 1 : 0
+        );
+      }}
+      style={{
+        position: "absolute",
+        right: 16,
+        top: "50%",
+        fontSize: 36,
+        background: "rgba(255,255,255,0.15)",
+        color: "#fff",
+        border: "none",
+        borderRadius: "50%",
+        width: 48,
+        height: 48,
+      }}
+    >
+      ›
+    </button>
+
+    <div
+      style={{
+        position: "absolute",
+        top: 20,
+        color: "#fff",
+        fontSize: 14,
+        background: "rgba(0,0,0,0.35)",
+        padding: "6px 10px",
+        borderRadius: 999,
+      }}
+    >
+      {viewerIndex + 1} / {viewerPhotos.length}
+    </div>
   </div>
 )}
     </div>
