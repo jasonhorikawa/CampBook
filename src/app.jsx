@@ -3890,7 +3890,20 @@ entries.forEach((e) => {
                 alignItems: "flex-start",
               }}
             >
-              <span style={{ fontSize: 32 }}>{cover.emoji}</span>
+              {entry.photos?.[0]?.url ? (
+  <img
+    src={entry.photos[0].url}
+    alt=""
+    style={{
+      width: 54,
+      height: 54,
+      objectFit: "cover",
+      borderRadius: 12,
+    }}
+  />
+) : (
+  <span style={{ fontSize: 32 }}>{cover.emoji}</span>
+)}
               <div style={{ flex: 1 }}>
                 <div
                   style={{ fontSize: 15, fontWeight: 700, color: "#F4EFE6" }}
