@@ -4330,6 +4330,7 @@ entries.forEach((e) => {
 )}
     </div>
   );
+};
 
 // ── Discover ──────────────────────────────────────────────
 const DiscoverView = ({ onSelectCamp }) => {
