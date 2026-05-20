@@ -7287,6 +7287,15 @@ export default function CampBook() {
   }
 
   checkLogin();
+    const {
+  data: { subscription },
+} = supabase.auth.onAuthStateChange((_event, session) => {
+  if (session) {
+    checkLogin();
+  }
+});
+
+return () => subscription.unsubscribe();
 }, []);
 
   const setEntries = (fn) =>
