@@ -42,12 +42,13 @@ if (trips.length > 0) {
     JSON.stringify({
       ...loadData(),
       entries: trips
-  .map((t) => ({ ...t.trip_data, supabase_id: t.id }))
-  .filter(Boolean),
+        .map((t) => ({ ...t.trip_data, supabase_id: t.id }))
+        .filter(Boolean),
     })
   );
+}
 
-  window.location.reload();
+window.location.reload();
 }
   }
 }
