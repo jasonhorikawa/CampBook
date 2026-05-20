@@ -4330,13 +4330,13 @@ entries.forEach((e) => {
         i > 0 ? i - 1 : viewerPhotos.length - 1
       );
     }
-  }}
+  }
   style={{
     position: "fixed",
     inset: 0,
     touchAction: "pan-y",
   }
-}}
+}
     style={{
       position: "fixed",
       inset: 0,
