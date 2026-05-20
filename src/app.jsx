@@ -4374,6 +4374,7 @@ entries.forEach((e) => {
   onClick={(e) => e.stopPropagation()}
   
       style={{
+        zIndex: 10000,
         maxWidth: "100%",
         maxHeight: "100%",
         objectFit: "contain",
