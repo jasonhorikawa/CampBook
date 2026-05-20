@@ -7427,8 +7427,14 @@ export default function CampBook() {
   supabase_id: editing?.supabase_id || form.supabase_id,
 };
 
-if (editing?.id || editing?.supabase_id) {
+if (editing?.id) {
   update(editing.id, updatedForm);
+} else if (editing?.supabase_id) {
+  setEntries((p) =>
+    p.map((e) =>
+      e.supabase_id === editing.supabase_id ? updatedForm : e
+    )
+  );
 } else {
   add(updatedForm);
 }
