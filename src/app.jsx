@@ -1561,10 +1561,14 @@ function DatePicker({ startDate, endDate, onChange }) {
 
 // ── Photo Uploader ────────────────────────────────────────
 const PhotoUploader = ({ photos, onChange }) => {
+  const [uploading, setUploading] = useState(false);
   const ref = useRef();
   const handleFiles = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
+    setUploading(true);
+    onChange((prev) => [...prev]);
+    
     let done = 0;
     const batch = [];
     files.forEach(async (file) => {
@@ -1582,6 +1586,7 @@ const PhotoUploader = ({ photos, onChange }) => {
 
   if (done === files.length) {
     onChange((p) => [...p, ...batch]);
+    setUploading(false);
   }
 });
     e.target.value = "";
@@ -1596,6 +1601,18 @@ const PhotoUploader = ({ photos, onChange }) => {
         style={{ display: "none" }}
         onChange={handleFiles}
       />
+      {uploading && (
+  <div
+    style={{
+      textAlign: "center",
+      padding: 10,
+      color: P.muted,
+      fontSize: 12,
+    }}
+  >
+    Uploading photos...
+  </div>
+)}
       {photos.length > 0 && (
         <>
           <div
