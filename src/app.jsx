@@ -4308,28 +4308,33 @@ entries.forEach((e) => {
       )}
     {viewerIndex !== null && (
   <div
-    onClick={(e) => {
-  if (e.target !== e.currentTarget) return;
-      setViewerIndex(null);
-      setViewerPhotos([]);
-    }}
-    onTouchStart={(e) => {
-  window.touchStartX = e.touches[0].clientX;
-}}
+  onClick={(e) => {
+    if (e.target !== e.currentTarget) return;
+    setViewerIndex(null);
+    setViewerPhotos([]);
+  }}
+  onPointerDown={(e) => {
+    window.swipeStartX = e.clientX;
+  }}
+  onPointerUp={(e) => {
+    const diff = window.swipeStartX - e.clientX;
 
-onTouchEnd={(e) => {
-  const touchEndX = e.changedTouches[0].clientX;
-  const diff = window.touchStartX - touchEndX;
+    if (diff > 60) {
+      setViewerIndex((i) =>
+        i < viewerPhotos.length - 1 ? i + 1 : 0
+      );
+    }
 
-  if (diff > 60) {
-    setViewerIndex((i) =>
-      i < viewerPhotos.length - 1 ? i + 1 : 0
-    );
-  }
-
-  if (diff < -60) {
-    setViewerIndex((i) =>
-      i > 0 ? i - 1 : viewerPhotos.length - 1
+    if (diff < -60) {
+      setViewerIndex((i) =>
+        i > 0 ? i - 1 : viewerPhotos.length - 1
+      );
+    }
+  }}
+  style={{
+    position: "fixed",
+    inset: 0,
+    touchAction: "pan-y",
     );
   }
 }}
