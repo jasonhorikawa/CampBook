@@ -2763,10 +2763,16 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
                 <>
                   <SLabel mt={0}>Campground Name</SLabel>
                   <Inp
-                    value={form.campgroundName}
-                    onChange={(e) => set("campgroundName", e.target.value)}
-                    placeholder="e.g. Lake Cachuma Recreation Area"
-                  />
+                     value={form.campgroundName}
+                     onChange={async (e) => {
+                     const value = e.target.value;
+                     set("campgroundName", value);
+
+                     const results = await searchCampgrounds(value);
+                     setCampResults(results);
+                   }}
+                   placeholder="e.g. Lake Cachuma Recreation Area"
+                />
                   <SLabel>Location</SLabel>
                   <Inp
                     value={form.location}
