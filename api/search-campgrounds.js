@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.VITE_RECGOV_API_KEY;
 
   const response = await fetch(
-    `https://ridb.recreation.gov/api/v1/facilities?limit=10&query=${encodeURIComponent(query)}&full=true`,
+    `https://ridb.recreation.gov/api/v1/facilities?limit=10&facilityName=${encodeURIComponent(query)}&full=true`,
     {
       headers: {
         apikey: apiKey,
