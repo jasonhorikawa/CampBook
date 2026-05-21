@@ -187,6 +187,8 @@ async function searchCampgrounds(query) {
 );
 
 const data = await res.json();
+    
+console.log("DATA:", data);
 
 return data.results || [];
   } catch (err) {
