@@ -6506,79 +6506,9 @@ const FriendsView = ({ friends, setFriends }) => {
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
-          value={form.campgroundName || ""}
-          onChange={async (e) => {
-  const value = e.target.value;
-
-  setForm((f) => ({
-    ...f,
-    campgroundName: value,
-  }));
-
-  setCampSearchLoading(true);
-
-  const results = await searchCampgrounds(value);
-
-  setCampResults(results);
-  setCampSearchLoading(false);
-}}
-         
-          style={{
-            flex: 1,
-            padding: "10px 12px",
-            background: "#fff",
-            border: `1.5px solid ${P.border}`,
-            borderRadius: 10,
-            fontSize: 14,
-            fontFamily: "'Lora',Georgia,serif",
-            outline: "none",
-          }}
-        />
-        <Btn color={P.pine} sx={{ padding: "10px 14px" }}>
-          🔍
-        </Btn>
-      </div>
-      {campResults.length > 0 && (
-  <div
-    style={{
-      background: "#fff",
-      border: "1px solid #ccc",
-      borderRadius: 12,
-      padding: 8,
-      marginTop: 6,
-      maxHeight: 240,
-      overflowY: "auto",
-    }}
-  >
-    {campResults.map((camp) => (
-      <div
-        key={camp.FacilityID}
-        onClick={() => {
-          setForm((f) => ({
-            ...f,
-            campgroundName: camp.FacilityName,
-            location: camp.FacilityAddress || "",
-          }));
-
-          setCampResults([]);
-        }}
-        style={{
-          padding: 10,
-          cursor: "pointer",
-          borderBottom: "1px solid #eee",
-        }}
-      >
-        <div style={{ fontWeight: 700 }}>
-          {camp.FacilityName}
-        </div>
-
-        <div style={{ fontSize: 13, opacity: 0.7 }}>
-          {camp.FacilityAddress}
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+  
       <div
         style={{
           background: P.cream,
