@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Missing API key" });
   }
 
-  const url = `https://ridb.recreation.gov/api/v1/facilities?limit=10&query=${encodeURIComponent(query)}&full=true`;
+  const url = `https://ridb.recreation.gov/api/v1/facilities?limit=10&query=${encodeURIComponent(query)}&full=true&api_key=${apiKey.trim()}`;
 
   const response = await fetch(url, {
     headers: {
