@@ -6568,7 +6568,7 @@ const FriendsView = ({ friends, setFriends }) => {
             </Btn>
           </div>
         </div>
-      ))}
+      ))
       <div
         style={{
           textAlign: "center",
