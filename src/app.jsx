@@ -6503,10 +6503,13 @@ const FriendsView = ({ friends, setFriends }) => {
           ))}
         </>
       )}
-         </div>
-       );
-    };
-    
+        const FriendsView = ({ friends, setFriends }) => {
+  const [search, setSearch] = useState("");
+  const active = friends.filter((f) => f.status === "friend");
+  const pending = friends.filter((f) => f.status === "pending");
+
+  return (
+    <div style={S.scroll}>
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
@@ -6521,69 +6524,10 @@ const FriendsView = ({ friends, setFriends }) => {
             fontSize: 14,
             fontFamily: "'Lora',Georgia,serif",
             outline: "none",
-            }}
-          />
-  </div>
-      <div
-        style={{
-          background: P.cream,
-          borderRadius: 12,
-          padding: "12px 14px",
-          marginBottom: 14,
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-        }}
-      >
-        <span style={{ fontSize: 26 }}>📲</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: P.forest }}>
-            Invite a camping buddy
-          </div>
-          <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-            Share CampBook so you can swap trip recommendations
-          </div>
-        </div>
-        <Btn small color={P.amber}>
-          Invite
-        </Btn>
+          }}
+        />
       </div>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: P.muted,
-          marginBottom: 8,
-        }}
-      >
-        Your Crew ({active.length})
-      </div>
-      {active.map((f) => (
-        <div key={f.id} style={S.card}>
-          <div
-            style={{
-              padding: "12px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <Avatar emoji={f.avatar} color={f.color} size={44} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{f.name}</div>
-              <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-                Active {f.lastActive}
-              </div>
-            </div>
-            <Btn small color={P.pine} sx={{ fontSize: 11 }}>
-              View Trips
-            </Btn>
-          </div>
-        </div>
-      ))}
-      
+
       <div
         style={{
           textAlign: "center",
@@ -6596,9 +6540,8 @@ const FriendsView = ({ friends, setFriends }) => {
         Friend sync requires backend — coming in v2.0
       </div>
     </div>
-    
   );
-};   
+};
       
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
