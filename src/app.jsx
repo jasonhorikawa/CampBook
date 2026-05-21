@@ -57,10 +57,10 @@ async function loadTripsFromSupabase() {
   } = await supabase.auth.getUser();
 
   const { data, error } = await supabase
-    .from("trips")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  .from("trips")
+  .select("*")
+  .neq("trip_data->>privacy", "private")
+  .order("created_at", { ascending: false });
 
   if (error) {
     alert("Load failed: " + error.message);
