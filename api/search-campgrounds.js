@@ -10,9 +10,10 @@ export default async function handler(req, res) {
 
   const response = await fetch(url, {
     headers: {
-      apikey: apiKey,
-      accept: "application/json",
-    },
+  apikey: apiKey.trim(),
+  "X-Api-Key": apiKey.trim(),
+  accept: "application/json",
+},
   });
 
   const text = await response.text();
