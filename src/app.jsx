@@ -182,20 +182,13 @@ async function searchCampgrounds(query) {
   if (!query || query.length < 3) return [];
 
   try {
-    const apiKey = import.meta.env.VITE_RECGOV_API_KEY;
-
     const res = await fetch(
-      `https://ridb.recreation.gov/api/v1/facilities?query=${encodeURIComponent(query)}&limit=5`,
-      {
-        headers: {
-          apikey: apiKey,
-        },
-      }
-    );
+  `/api/search-campgrounds?query=${encodeURIComponent(query)}`
+);
 
-    const data = await res.json();
+const data = await res.json();
 
-    return data.RECDATA || [];
+return data.results || [];
   } catch (err) {
     console.error("Campground search failed", err);
     return [];
