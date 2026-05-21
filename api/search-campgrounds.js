@@ -6,21 +6,16 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Missing API key" });
   }
 
-  const url = `https://ridb.recreation.gov/api/v1/facilities?limit=10&query=${encodeURIComponent(query)}&full=true`;
+  const url =
+    `https://ridb.recreation.gov/api/v1/facilities?limit=10&query=${encodeURIComponent(query)}&full=true&apikey=${apiKey.trim()}`;
 
   const response = await fetch(url, {
     headers: {
-  "X-Api-Key": apiKey.trim(),
-  accept: "application/json",
-},
+      accept: "application/json",
+    },
   });
 
-  const text = await response.text();
+  const data = await response.json();
 
-  return res.status(200).json({
-    apiKeyLoaded: true,
-    ridbStatus: response.status,
-    url,
-    rawStart: text.slice(0, 500),
-  });
+  return res.status(200).json(data);
 }
