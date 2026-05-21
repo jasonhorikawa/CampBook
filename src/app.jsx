@@ -6503,6 +6503,9 @@ const FriendsView = ({ friends, setFriends }) => {
           ))}
         </>
       )}
+         </div>
+       );
+    };
     const FriendsView = ({ friends, setFriends }) => {
   const [search, setSearch] = useState("");
 
