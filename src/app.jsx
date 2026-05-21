@@ -3733,6 +3733,7 @@ const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
   const [shareEntry, setShareEntry] = useState(null);
   const [viewerPhotos, setViewerPhotos] = useState([]);
 const [viewerIndex, setViewerIndex] = useState(null);
+  const [photoLoaded, setPhotoLoaded] = useState(false);
   useEffect(() => {
   if (viewerIndex !== null) {
     document.body.style.overflow = "hidden";
@@ -3756,12 +3757,16 @@ const [viewerIndex, setViewerIndex] = useState(null);
     }
 
     if (e.key === "ArrowRight") {
+      setPhotoLoaded(false);
+      
       setViewerIndex((i) =>
         i < viewerPhotos.length - 1 ? i + 1 : 0
       );
     }
 
     if (e.key === "ArrowLeft") {
+      setPhotoLoaded(false);
+      
       setViewerIndex((i) =>
         i > 0 ? i - 1 : viewerPhotos.length - 1
       );
@@ -4390,6 +4395,7 @@ entries.forEach((e) => {
   src={viewerPhotos[viewerIndex]}
   alt=""
   onClick={(e) => e.stopPropagation()}
+  onLoad={() => setPhotoLoaded(true)}
   onPointerDown={(e) => {
   window.swipeStartX = e.clientX;
 }}
@@ -4417,6 +4423,7 @@ onPointerUp={(e) => {
         objectFit: "contain",
         borderRadius: 12,
         transition: "opacity 0.2s ease",
+        opacity: photoLoaded ? 1 : 0,
       }}
     />
 
