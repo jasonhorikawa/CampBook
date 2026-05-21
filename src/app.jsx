@@ -71,7 +71,7 @@ async function loadTripsFromSupabase() {
   if (trip.user_id === user.id) return true;
 
   // show non-private trips from others
-  return trip.trip_data?.privacy !== "private";
+  return true;
 });
 
 return filteredTrips;
