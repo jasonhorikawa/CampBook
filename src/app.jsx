@@ -3744,6 +3744,34 @@ const [viewerIndex, setViewerIndex] = useState(null);
     document.body.style.overflow = "";
   };
 }, [viewerIndex]);
+  useEffect(() => {
+  if (viewerIndex === null) return;
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      setViewerIndex(null);
+      setViewerPhotos([]);
+    }
+
+    if (e.key === "ArrowRight") {
+      setViewerIndex((i) =>
+        i < viewerPhotos.length - 1 ? i + 1 : 0
+      );
+    }
+
+    if (e.key === "ArrowLeft") {
+      setViewerIndex((i) =>
+        i > 0 ? i - 1 : viewerPhotos.length - 1
+      );
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown);
+  };
+}, [viewerIndex, viewerPhotos.length]);
   const filtered = entries.filter((e) => {
     if (filter === "return") return e.returnWorthy === true;
     if (filter === "family") return e.who?.length > 1;
