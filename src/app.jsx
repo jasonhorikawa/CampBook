@@ -6508,6 +6508,7 @@ const FriendsView = ({ friends, setFriends }) => {
           placeholder="Search by name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+/>
   
       <div
         style={{
