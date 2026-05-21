@@ -3748,6 +3748,8 @@ const [viewerIndex, setViewerIndex] = useState(null);
   if (viewerIndex === null) return;
 
   const handleKeyDown = (e) => {
+    e.preventDefault();
+    
     if (e.key === "Escape") {
       setViewerIndex(null);
       setViewerPhotos([]);
@@ -3766,10 +3768,10 @@ const [viewerIndex, setViewerIndex] = useState(null);
     }
   };
 
-  window.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("keydown", handleKeyDown);
 
   return () => {
-    window.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("keydown", handleKeyDown);
   };
 }, [viewerIndex, viewerPhotos.length]);
   const filtered = entries.filter((e) => {
