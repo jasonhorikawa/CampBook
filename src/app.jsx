@@ -4404,12 +4404,16 @@ onPointerUp={(e) => {
   const diff = window.swipeStartX - e.clientX;
 
   if (diff > 50) {
+    setPhotoLoaded(false);
+    
     setViewerIndex((i) =>
       i < viewerPhotos.length - 1 ? i + 1 : 0
     );
   }
 
   if (diff < -50) {
+    setPhotoLoaded(false);
+    
     setViewerIndex((i) =>
       i > 0 ? i - 1 : viewerPhotos.length - 1
     );
