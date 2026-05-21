@@ -6569,6 +6569,7 @@ const FriendsView = ({ friends, setFriends }) => {
           </div>
         </div>
       ))}
+      
       <div
         style={{
           textAlign: "center",
@@ -6581,8 +6582,9 @@ const FriendsView = ({ friends, setFriends }) => {
         Friend sync requires backend — coming in v2.0
       </div>
     </div>
+    
   );
-};
+  };
 
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
