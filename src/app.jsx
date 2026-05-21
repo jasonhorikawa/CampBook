@@ -6506,11 +6506,7 @@ const FriendsView = ({ friends, setFriends }) => {
          </div>
        );
     };
-    const FriendsView = ({ friends, setFriends }) => {
-  const [search, setSearch] = useState("");
-
-  return (
-    <>
+    
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
