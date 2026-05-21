@@ -59,7 +59,6 @@ async function loadTripsFromSupabase() {
   const { data, error } = await supabase
   .from("trips")
   .select("*")
-  .neq("trip_data->>privacy", "private")
   .order("created_at", { ascending: false });
 
   if (error) {
@@ -67,7 +66,15 @@ async function loadTripsFromSupabase() {
     return [];
   }
 
-  return data;
+  const filteredTrips = data.filter((trip) => {
+  // always show your own trips
+  if (trip.user_id === user.id) return true;
+
+  // show non-private trips from others
+  return trip.trip_data?.privacy !== "private";
+});
+
+return filteredTrips;
 }
 function compressImage(file, maxWidth = 1200, quality = 0.75) {
   return new Promise((resolve) => {
