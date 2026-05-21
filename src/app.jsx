@@ -6506,7 +6506,7 @@ const FriendsView = ({ friends, setFriends }) => {
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
-          value={value={form.campgroundName || ""}
+          value={form.campgroundName || ""}
           onChange={async (e) => {
   const value = e.target.value;
 
