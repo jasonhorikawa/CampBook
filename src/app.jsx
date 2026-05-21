@@ -4347,6 +4347,24 @@ entries.forEach((e) => {
       padding: 16,
     }}
   >
+    <div
+  onClick={(e) => e.stopPropagation()}
+  style={{
+    position: "fixed",
+    top: 20,
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 10002,
+    background: "rgba(0,0,0,0.65)",
+    color: "#fff",
+    padding: "6px 12px",
+    borderRadius: 999,
+    fontSize: 14,
+    fontWeight: 700,
+  }}
+>
+  {viewerIndex + 1} / {viewerPhotos.length}
+</div>
     <button
       onClick={(e) => {
         e.stopPropagation();
