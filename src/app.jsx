@@ -6504,13 +6504,7 @@ const FriendsView = ({ friends, setFriends }) => {
         </>
       )}
       
-  const FriendsView = ({ friends, setFriends }) => {
-    const [search, setSearch] = useState("");
-    const active = friends.filter((f) => f.status === "friend");
-    const pending = friends.filter((f) => f.status === "pending");
-
-  return (
-    <div style={S.scroll}>
+  
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
