@@ -4349,6 +4349,15 @@ entries.forEach((e) => {
       padding: 16,
     }}
   >
+
+    <style>
+  {`
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  `}
+</style>
     <div
   onClick={(e) => e.stopPropagation()}
   style={{
@@ -4392,6 +4401,7 @@ entries.forEach((e) => {
     </button>
 
     <img
+  key={viewerIndex}
   src={viewerPhotos[viewerIndex]}
   alt=""
   onClick={(e) => e.stopPropagation()}
@@ -4427,6 +4437,7 @@ onPointerUp={(e) => {
         objectFit: "contain",
         borderRadius: 12,
         transition: "opacity 0.2s ease",
+        animation: "fadeIn 0.25s ease",
         opacity: photoLoaded ? 1 : 0,
       }}
     />
