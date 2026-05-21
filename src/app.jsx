@@ -2697,6 +2697,7 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
   const [mTitle, setMTitle] = useState("");
   const [mNote, setMNote] = useState("");
   const [showM, setShowM] = useState(false);
+  const [campResults, setCampResults] = useState([]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const toggleWho = (id) =>
     set(
