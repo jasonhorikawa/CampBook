@@ -178,6 +178,29 @@ const MONTHS = [
 ];
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const STORAGE_KEY = "campbook_v10";
+async function searchCampgrounds(query) {
+  if (!query || query.length < 3) return [];
+
+  try {
+    const apiKey = import.meta.env.VITE_RECGOV_API_KEY;
+
+    const res = await fetch(
+      `https://ridb.recreation.gov/api/v1/facilities?query=${encodeURIComponent(query)}&limit=5`,
+      {
+        headers: {
+          apikey: apiKey,
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    return data.RECDATA || [];
+  } catch (err) {
+    console.error("Campground search failed", err);
+    return [];
+  }
+}
 
 // ── Storage ───────────────────────────────────────────────
 function loadData() {
@@ -3734,6 +3757,8 @@ const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
   const [viewerPhotos, setViewerPhotos] = useState([]);
 const [viewerIndex, setViewerIndex] = useState(null);
   const [photoLoaded, setPhotoLoaded] = useState(false);
+  const [campResults, setCampResults] = useState([]);
+const [campSearchLoading, setCampSearchLoading] = useState(false);
   useEffect(() => {
   if (viewerIndex !== null) {
     document.body.style.overflow = "hidden";
@@ -6481,8 +6506,23 @@ const FriendsView = ({ friends, setFriends }) => {
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={value={form.campgroundName || ""}
+          onChange={async (e) => {
+  const value = e.target.value;
+
+  setForm((f) => ({
+    ...f,
+    campgroundName: value,
+  }));
+
+  setCampSearchLoading(true);
+
+  const results = await searchCampgrounds(value);
+
+  setCampResults(results);
+  setCampSearchLoading(false);
+}}
+         
           style={{
             flex: 1,
             padding: "10px 12px",
@@ -6498,6 +6538,47 @@ const FriendsView = ({ friends, setFriends }) => {
           🔍
         </Btn>
       </div>
+      {campResults.length > 0 && (
+  <div
+    style={{
+      background: "#fff",
+      border: "1px solid #ccc",
+      borderRadius: 12,
+      padding: 8,
+      marginTop: 6,
+      maxHeight: 240,
+      overflowY: "auto",
+    }}
+  >
+    {campResults.map((camp) => (
+      <div
+        key={camp.FacilityID}
+        onClick={() => {
+          setForm((f) => ({
+            ...f,
+            campgroundName: camp.FacilityName,
+            location: camp.FacilityAddress || "",
+          }));
+
+          setCampResults([]);
+        }}
+        style={{
+          padding: 10,
+          cursor: "pointer",
+          borderBottom: "1px solid #eee",
+        }}
+      >
+        <div style={{ fontWeight: 700 }}>
+          {camp.FacilityName}
+        </div>
+
+        <div style={{ fontSize: 13, opacity: 0.7 }}>
+          {camp.FacilityAddress}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
       <div
         style={{
           background: P.cream,
