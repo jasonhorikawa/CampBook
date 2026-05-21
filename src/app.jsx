@@ -6584,7 +6584,7 @@ const FriendsView = ({ friends, setFriends }) => {
     </div>
     
   );
-  };
+};
 
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
