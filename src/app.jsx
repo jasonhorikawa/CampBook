@@ -3729,7 +3729,6 @@ const niceDate = (s) => {
   return `${MONTHS[+m - 1].slice(0, 3)} ${+d}, ${y}`;
 };
 const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
-  const [lb, setLb] = useState(null);
   const [filter, setFilter] = useState("all");
   const [shareEntry, setShareEntry] = useState(null);
   const [viewerPhotos, setViewerPhotos] = useState([]);
