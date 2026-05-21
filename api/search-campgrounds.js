@@ -5,20 +5,34 @@ export default async function handler(req, res) {
     return res.status(200).json({ results: [] });
   }
 
-  const apiKey = process.env.VITE_RECGOV_API_KEY;
+  try {
+    const apiKey = process.env.VITE_RECGOV_API_KEY;
 
-  const response = await fetch(
-    `https://ridb.recreation.gov/api/v1/facilities?limit=10&facilityName=${encodeURIComponent(query)}&full=true`,
-    {
-      headers: {
-        apikey: apiKey,
-      },
-    }
-  );
+    const response = await fetch(
+      `https://ridb.recreation.gov/api/v1/facilities?query=${encodeURIComponent(query)}&limit=10`,
+      {
+        headers: {
+          apikey: apiKey,
+          accept: "application/json",
+        },
+      }
+    );
 
-  const data = await response.json();
+    const text = await response.text();
 
-  res.status(200).json({
-    results: data.RECDATA || [],
-  });
+    console.log(text);
+
+    const data = JSON.parse(text);
+
+    return res.status(200).json({
+      results: data.RECDATA || [],
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      results: [],
+      error: err.message,
+    });
+  }
 }
