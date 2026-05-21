@@ -6508,6 +6508,16 @@ const FriendsView = ({ friends, setFriends }) => {
           placeholder="Search by name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            background: "#fff",
+            border: `1.5px solid ${P.border}`,
+            borderRadius: 10,
+            fontSize: 14,
+            fontFamily: "'Lora',Georgia,serif",
+            outline: "none",
+            }}
           />
   
       <div
