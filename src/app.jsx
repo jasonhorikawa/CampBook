@@ -6503,6 +6503,11 @@ const FriendsView = ({ friends, setFriends }) => {
           ))}
         </>
       )}
+    const FriendsView = ({ friends, setFriends }) => {
+  const [search, setSearch] = useState("");
+
+  return (
+    <>
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
@@ -6519,7 +6524,7 @@ const FriendsView = ({ friends, setFriends }) => {
             outline: "none",
             }}
           />
-  
+  </div>
       <div
         style={{
           background: P.cream,
@@ -6594,8 +6599,8 @@ const FriendsView = ({ friends, setFriends }) => {
     </div>
     
   );
-};
-
+};   
+      
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("👤");
