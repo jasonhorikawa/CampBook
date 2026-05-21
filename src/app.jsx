@@ -3733,6 +3733,17 @@ const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
   const [shareEntry, setShareEntry] = useState(null);
   const [viewerPhotos, setViewerPhotos] = useState([]);
 const [viewerIndex, setViewerIndex] = useState(null);
+  useEffect(() => {
+  if (viewerIndex !== null) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+  }
+
+  return () => {
+    document.body.style.overflow = "";
+  };
+}, [viewerIndex]);
   const filtered = entries.filter((e) => {
     if (filter === "return") return e.returnWorthy === true;
     if (filter === "family") return e.who?.length > 1;
