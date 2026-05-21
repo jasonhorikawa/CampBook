@@ -7707,18 +7707,21 @@ if (editing?.id) {
   add(updatedForm);
 }
 
-  const { error } = await supabase.from("trips").upsert([
-    {
-      id: editing?.supabase_id || form.supabase_id,
-      title: form.campgroundName || "Untitled Trip",
-      location: form.location || "",
-      user_id: user.id,
-      trip_data: {
-      ...form,
-      supabase_id: editing?.supabase_id,
-},
-    },
-  ]);
+  const tripRow = {
+  title: form.campgroundName || "Untitled Trip",
+  location: form.location || "",
+  user_id: user.id,
+  trip_data: {
+    ...form,
+    supabase_id: editing?.supabase_id || form.supabase_id,
+  },
+};
+
+if (editing?.supabase_id || form.supabase_id) {
+  tripRow.id = editing?.supabase_id || form.supabase_id;
+}
+
+const { error } = await supabase.from("trips").upsert([tripRow]);
 
   if (error) {
     alert("Cloud save failed: " + error.message);
