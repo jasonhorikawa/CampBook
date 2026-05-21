@@ -6502,11 +6502,12 @@ const FriendsView = ({ friends, setFriends }) => {
             </div>
           ))}
         </>
-      )}
-        const FriendsView = ({ friends, setFriends }) => {
-  const [search, setSearch] = useState("");
-  const active = friends.filter((f) => f.status === "friend");
-  const pending = friends.filter((f) => f.status === "pending");
+      ))}
+      
+  const FriendsView = ({ friends, setFriends }) => {
+    const [search, setSearch] = useState("");
+    const active = friends.filter((f) => f.status === "friend");
+    const pending = friends.filter((f) => f.status === "pending");
 
   return (
     <div style={S.scroll}>
