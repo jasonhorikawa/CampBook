@@ -2773,6 +2773,45 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
                    }}
                    placeholder="e.g. Lake Cachuma Recreation Area"
                 />
+                  {campResults.length > 0 && (
+  <div
+    style={{
+      background: "#fff",
+      border: `1.5px solid ${P.border}`,
+      borderRadius: 12,
+      marginBottom: 10,
+      overflow: "hidden",
+    }}
+  >
+    {campResults.map((camp) => (
+      <button
+        key={camp.FacilityID}
+        onClick={() => {
+          set("campgroundName", camp.FacilityName || "");
+          set("location", camp.FacilityAddress?.[0]?.AddressStateCode || "");
+          setCampResults([]);
+        }}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          background: "#fff",
+          border: "none",
+          borderBottom: `1px solid ${P.border}`,
+          textAlign: "left",
+          fontFamily: "'Lora',Georgia,serif",
+          cursor: "pointer",
+        }}
+      >
+        <div style={{ fontWeight: 700, color: P.forest }}>
+          {camp.FacilityName}
+        </div>
+        <div style={{ fontSize: 12, color: P.muted }}>
+          {camp.FacilityTypeDescription || "Campground"}
+        </div>
+      </button>
+    ))}
+  </div>
+)}
                   <SLabel>Location</SLabel>
                   <Inp
                     value={form.location}
