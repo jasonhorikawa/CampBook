@@ -4264,50 +4264,7 @@ entries.forEach((e) => {
       {shareEntry && (
         <ShareModal entry={shareEntry} onClose={() => setShareEntry(null)} />
       )}
-      {lb && (
-        <div
-          onClick={() => setLb(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "#000000DD",
-            zIndex: 999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <img
-            src={lb}
-            alt=""
-            style={{
-              maxWidth: "100%",
-              maxHeight: "90vh",
-              borderRadius: 12,
-              objectFit: "contain",
-            }}
-          />
-          <button
-            onClick={() => setLb(null)}
-            style={{
-              position: "fixed",
-              top: 20,
-              right: 20,
-              background: "#ffffff22",
-              border: "none",
-              color: "#fff",
-              borderRadius: "50%",
-              width: 36,
-              height: 36,
-              fontSize: 18,
-              cursor: "pointer",
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      
     {viewerIndex !== null && (
   <div
   onClick={(e) => {
