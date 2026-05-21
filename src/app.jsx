@@ -4375,8 +4375,27 @@ entries.forEach((e) => {
   src={viewerPhotos[viewerIndex]}
   alt=""
   onClick={(e) => e.stopPropagation()}
-  
+  onPointerDown={(e) => {
+  window.swipeStartX = e.clientX;
+}}
+
+onPointerUp={(e) => {
+  const diff = window.swipeStartX - e.clientX;
+
+  if (diff > 50) {
+    setViewerIndex((i) =>
+      i < viewerPhotos.length - 1 ? i + 1 : 0
+    );
+  }
+
+  if (diff < -50) {
+    setViewerIndex((i) =>
+      i > 0 ? i - 1 : viewerPhotos.length - 1
+    );
+  }
+}}
       style={{
+        touchAction: "pan-y",
         zIndex: 10000,
         maxWidth: "100%",
         maxHeight: "100%",
