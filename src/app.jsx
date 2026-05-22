@@ -6591,25 +6591,26 @@ const FriendsView = ({ friends, setFriends }) => {
       </div>
 
       <div
-        style={{
-          textAlign: "center",
-          padding: "16px",
-          fontSize: 12,
-          color: P.border,
-          fontStyle: "italic",
-        }}
-      >
-        Friend sync requires backend — coming in v2.0
-      </div>
-            <Btn
-        small
-        color={P.pine}
-        onClick={() =>
-          sendFriendRequest("PASTE_USER_ID_HERE")
-        }
-      >
-        Add Test Friend
-      </Btn>
+  style={{
+    textAlign: "center",
+    padding: "16px",
+    fontSize: 12,
+    color: P.border,
+    fontStyle: "italic",
+  }}
+>
+
+  <button
+    onClick={() => {
+      alert("Button clicked");
+      sendFriendRequest("PASTE_USER_ID_HERE");
+    }}
+  >
+    Add Test Friend
+  </button>
+
+  Friend sync requires backend — coming in v2.0
+</div>
       
     </div>
   );
