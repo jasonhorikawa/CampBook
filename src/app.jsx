@@ -6590,35 +6590,40 @@ const FriendsView = ({ friends, setFriends }) => {
         />
       </div>
 
-      <div
-  style={{
-    textAlign: "center",
-    padding: "16px",
-    fontSize: 12,
-    color: P.border,
-    fontStyle: "italic",
-  }}
->
+           <div
+        style={{
+          textAlign: "center",
+          padding: "16px",
+          fontSize: 12,
+          color: P.border,
+          fontStyle: "italic",
+        }}
+      >
+        <button
+          onClick={async () => {
+            try {
+              alert("Button clicked");
 
-  <button
-  onClick={async () => {
-    try {
-      alert("Button clicked");
+              await sendFriendRequest("5bb388f9-9221-4161-89e1-8d70a90af18d");
 
-      await sendFriendRequest("5bb388f9-9221-4161-89e1-8d70a90af18d");
+              alert("Finished running friend request function");
+            } catch (err) {
+              alert("Button error: " + err.message);
+            }
+          }}
+        >
+          Add Test Friend
+        </button>
 
-      alert("Finished running friend request function");
-    } catch (err) {
-      alert("Button error: " + err.message);
-    }
-  }}
->
-  Add Test Friend
-</button>
-      
+        <div style={{ marginTop: 8 }}>
+          Friend sync requires backend — coming in v2.0
+        </div>
+      </div>
     </div>
   );
 };
+
+const CrewView = ({ profiles, setProfiles }) => {
       
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
