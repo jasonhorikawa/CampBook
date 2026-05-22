@@ -7792,11 +7792,12 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
 
   const totalPins = (data.pins || []).length;
   const TABS = [
-    { k: "home", i: "🏠", l: "Home" },
-    { k: "journal", i: "📓", l: "Trips" },
-    { k: "fishing", i: "🎣", l: "Fishing" },
-    { k: "profile", i: "👤", l: "Profile" },
-  ];
+  { k: "home", i: "🏠", l: "Home" },
+  { k: "journal", i: "📓", l: "Trips" },
+  { k: "friends", i: "👥", l: "Friends" },
+  { k: "fishing", i: "🎣", l: "Fishing" },
+  { k: "profile", i: "👤", l: "Profile" },
+];
 
   const theme = data.darkMode
     ? { ...S.app, background: "#11180F", color: "#F4EFE6" }
