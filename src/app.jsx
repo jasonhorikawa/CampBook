@@ -6601,6 +6601,16 @@ const FriendsView = ({ friends, setFriends }) => {
       >
         Friend sync requires backend — coming in v2.0
       </div>
+            <Btn
+        small
+        color={P.pine}
+        onClick={() =>
+          sendFriendRequest("PASTE_USER_ID_HERE")
+        }
+      >
+        Add Test Friend
+      </Btn>
+      
     </div>
   );
 };
