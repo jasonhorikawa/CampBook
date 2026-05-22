@@ -6601,16 +6601,20 @@ const FriendsView = ({ friends, setFriends }) => {
 >
 
   <button
-    onClick={() => {
+  onClick={async () => {
+    try {
       alert("Button clicked");
-      sendFriendRequest("5bb388f9-9221-4161-89e1-8d70a90af18d");
-    }}
-  >
-    Add Test Friend
-  </button>
 
-  Friend sync requires backend — coming in v2.0
-</div>
+      await sendFriendRequest("5bb388f9-9221-4161-89e1-8d70a90af18d");
+
+      alert("Finished running friend request function");
+    } catch (err) {
+      alert("Button error: " + err.message);
+    }
+  }}
+>
+  Add Test Friend
+</button>
       
     </div>
   );
