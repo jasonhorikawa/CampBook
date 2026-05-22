@@ -76,6 +76,25 @@ async function loadTripsFromSupabase() {
 
 return filteredTrips;
 }
+async function sendFriendRequest(receiverId) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase.from("friendships").insert([
+    {
+      requester_id: user.id,
+      receiver_id: receiverId,
+      status: "pending",
+    },
+  ]);
+
+  if (error) {
+    alert("Friend request failed: " + error.message);
+  } else {
+    alert("Friend request sent!");
+  }
+}
 function compressImage(file, maxWidth = 1200, quality = 0.75) {
   return new Promise((resolve) => {
     const img = new Image();
