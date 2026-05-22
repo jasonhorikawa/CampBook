@@ -77,18 +77,42 @@ async function loadTripsFromSupabase() {
 return filteredTrips;
 }
 async function sendFriendRequest(receiverId) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("friendships").insert([
-    {
-      requester_id: user.id,
-      receiver_id: receiverId,
-      status: "pending",
-    },
-  ]);
+    if (userError) {
+      alert("User error: " + userError.message);
+      return;
+    }
 
+    if (!user) {
+      alert("No logged in user");
+      return;
+    }
+
+    alert("Logged in as: " + user.email);
+
+    const { error } = await supabase.from("friendships").insert([
+      {
+        requester_id: user.id,
+        receiver_id: receiverId,
+        status: "pending",
+      },
+    ]);
+
+    if (error) {
+      alert("Insert error: " + error.message);
+      return;
+    }
+
+    alert("Friend request sent!");
+  } catch (err) {
+    alert("Crash: " + err.message);
+  }
+}
   alert(
   error
     ? "Friend request failed: " + error.message
