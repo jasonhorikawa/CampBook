@@ -7565,7 +7565,7 @@ function ProfileView({ entries, profiles, friends, darkMode, setDarkMode }) {
       </div>
     </div>
   );
-}
+};
 
 // ── ROOT ──────────────────────────────────────────────────
 export default function CampBook() {
