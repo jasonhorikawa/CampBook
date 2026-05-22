@@ -89,11 +89,11 @@ async function sendFriendRequest(receiverId) {
     },
   ]);
 
-  if (error) {
-    alert("Friend request failed: " + error.message);
-  } else {
-    alert("Friend request sent!");
-  }
+  alert(
+  error
+    ? "Friend request failed: " + error.message
+    : "Friend request sent!"
+);
 }
 function compressImage(file, maxWidth = 1200, quality = 0.75) {
   return new Promise((resolve) => {
