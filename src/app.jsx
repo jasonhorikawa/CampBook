@@ -97,6 +97,7 @@ if (error) {
 }
 async function sendFriendRequest(receiverId) {
   try {
+    await ensureProfile();
     const {
       data: { user },
       error: userError,
