@@ -6603,7 +6603,7 @@ const FriendsView = ({ friends, setFriends }) => {
   <button
     onClick={() => {
       alert("Button clicked");
-      sendFriendRequest("PASTE_USER_ID_HERE");
+      sendFriendRequest("5bb388f9-9221-4161-89e1-8d70a90af18d");
     }}
   >
     Add Test Friend
