@@ -76,6 +76,21 @@ async function loadTripsFromSupabase() {
 
 return filteredTrips;
 }
+async function ensureProfile() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  await supabase.from("profiles").upsert({
+    id: user.id,
+    email: user.email,
+    display_name: user.email?.split("@")[0],
+  });
+
+  return user;
+}
 async function sendFriendRequest(receiverId) {
   try {
     const {
