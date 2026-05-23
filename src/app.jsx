@@ -7785,6 +7785,10 @@ return () => subscription.unsubscribe();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) {
+  alert("Please sign in before saving a trip.");
+  return;
+}
 
   const updatedForm = {
   ...form,
