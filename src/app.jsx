@@ -101,13 +101,18 @@ async function loadTripsFromSupabase() {
     return [];
   }
 
-  return (data || []).filter((trip) => {
-  // always show your own trips
-  if (trip.user_id === user.id) return true;
-
-  // only show public trips from others
-  return trip.trip_data?.privacy !== "private";
-});
+return (data || [])
+  .filter((trip) => {
+    if (trip.user_id === user.id) return true;
+    return trip.trip_data?.privacy !== "private";
+  })
+  .map((trip) => ({
+    ...trip.trip_data,
+    supabase_id: trip.id,
+    user_id: trip.user_id,
+    title: trip.title,
+    location: trip.location,
+  }));
 
 }
 async function ensureProfile() {
