@@ -201,6 +201,29 @@ async function sendFriendRequest(receiverId) {
     alert("Crash: " + err.message);
   }
 }
+async function searchProfiles(query) {
+  if (!query || query.length < 3) return [];
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, display_name")
+    .neq("id", user.id)
+    .or(`email.ilike.%${query}%,display_name.ilike.%${query}%`)
+    .limit(10);
+
+  if (error) {
+    alert("Search failed: " + error.message);
+    return [];
+  }
+
+  return data || [];
+}
 
 function compressImage(file, maxWidth = 1200, quality = 0.75) {
   return new Promise((resolve) => {
