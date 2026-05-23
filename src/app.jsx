@@ -7717,6 +7717,8 @@ return () => subscription.unsubscribe();
     setEntries((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   const remove = async (entry) => {
   const supabaseId = entry?.supabase_id;
+    
+    alert("Deleting Supabase ID: " + supabaseId);
 
   if (supabaseId) {
     const { error } = await supabase
