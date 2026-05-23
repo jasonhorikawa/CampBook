@@ -114,6 +114,36 @@ return (data || [])
 }));
 
 }
+
+async function loadFriendsFeedFromSupabase() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("trips")
+    .select("*")
+    .neq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    alert("Feed load failed: " + error.message);
+    return [];
+  }
+
+  return (data || [])
+    .filter((trip) => trip.trip_data?.privacy !== "private")
+    .map((trip) => ({
+      ...(trip.trip_data || {}),
+      supabase_id: trip.id,
+      user_id: trip.user_id,
+      campgroundName: trip.trip_data?.campgroundName || trip.title || "",
+      location: trip.trip_data?.location || trip.location || "",
+    }));
+}
+
 async function ensureProfile() {
   const {
     data: { user },
