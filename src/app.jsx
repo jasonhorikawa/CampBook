@@ -4198,7 +4198,7 @@ entries.forEach((e) => {
                   ✏️
                 </button>
                 <button
-                  onClick={() => onDelete(entry.id)}
+                  onClick={() => onDelete(entry)}
                   style={{
                     background: "#ffffff22",
                     border: "none",
@@ -7712,7 +7712,28 @@ return () => subscription.unsubscribe();
   const add = (e) => setEntries((p) => [...p, { ...e, id: Date.now() }]);
   const update = (id, patch) =>
     setEntries((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  const remove = (id) => setEntries((p) => p.filter((e) => e.id !== id));
+  const remove = async (entry) => {
+  const supabaseId = entry?.supabase_id;
+
+  if (supabaseId) {
+    const { error } = await supabase
+      .from("trips")
+      .delete()
+      .eq("id", supabaseId);
+
+    if (error) {
+      alert("Delete failed: " + error.message);
+      return;
+    }
+  }
+
+  setEntries((p) =>
+    p.filter((e) => {
+      if (supabaseId) return e.supabase_id !== supabaseId;
+      return e.id !== entry?.id;
+    })
+  );
+};
 
   const goDetail = (c) => {
     setCamp(c);
