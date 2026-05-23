@@ -103,9 +103,8 @@ async function loadTripsFromSupabase() {
 
 return (data || [])
   .filter((trip) => {
-    if (trip.user_id === user.id) return true;
-    return trip.trip_data?.privacy !== "private";
-  })
+  return trip.user_id === user.id;
+})
   .map((trip) => ({
   ...(trip.trip_data || {}),
   supabase_id: trip.id,
