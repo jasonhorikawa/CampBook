@@ -107,12 +107,9 @@ return (data || [])
     return trip.trip_data?.privacy !== "private";
   })
   .map((trip) => ({
-    ...trip.trip_data,
-    supabase_id: trip.id,
-    user_id: trip.user_id,
-    title: trip.title,
-    location: trip.location,
-  }));
+  ...trip.trip_data,
+  supabase_id: trip.id,
+}));
 
 }
 async function ensureProfile() {
