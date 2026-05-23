@@ -6496,7 +6496,7 @@ const FeedView = ({ friends, onApproveFriend }) => {
   );
 };
 
-const FriendsView = ({ friends, setFriends }) => {
+const FriendsView = ({ friends, setFriends, feedEntries = [] }) => {
   const [search, setSearch] = useState("");
   const active = friends.filter((f) => f.status === "friend");
   const pending = friends.filter((f) => f.status === "pending");
@@ -6697,6 +6697,35 @@ const FriendsView = ({ friends, setFriends }) => {
   </button>
 
   <div>Friend sync requires backend — coming in v2.0</div>
+                   <div style={S.card}>
+  <div style={{ ...S.hdrCard(), padding: "14px 16px" }}>
+    <div style={{ fontSize: 11, color: "#ffffff88", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+      Friends Feed
+    </div>
+    <div style={{ fontSize: 18, fontWeight: 700, color: "#F4EFE6" }}>
+      Shared Trips
+    </div>
+  </div>
+
+  <div style={{ padding: 14 }}>
+    {feedEntries.length === 0 ? (
+      <div style={{ color: P.muted, fontSize: 13 }}>
+        No shared trips yet.
+      </div>
+    ) : (
+      feedEntries.map((trip) => (
+        <div key={trip.supabase_id} style={{ padding: "10px 0", borderBottom: `1px solid ${P.border}` }}>
+          <div style={{ fontWeight: 700, color: P.forest }}>
+            {trip.campgroundName || "Untitled Trip"}
+          </div>
+          <div style={{ fontSize: 12, color: P.muted }}>
+            {trip.location || "No location"}
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
 </div>
     </div>
   );
@@ -8045,7 +8074,11 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
         />
       )}
       {!sub && tab === "friends" && (
-        <FriendsView friends={data.friends || []} setFriends={setFriends} />
+       <FriendsView
+  friends={data.friends || []}
+  setFriends={setFriends}
+  feedEntries={feedEntries}
+/>
       )}
       {!sub && tab === "crew" && (
         <CrewView profiles={data.profiles || []} setProfiles={setProfiles} />
