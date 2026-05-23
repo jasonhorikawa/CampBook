@@ -7803,9 +7803,7 @@ if (editing?.id) {
       e.supabase_id === editing.supabase_id ? updatedForm : e
     )
   );
-} else {
-  add(updatedForm);
-}
+} 
 
   const tripRow = {
   title: form.campgroundName || "Untitled Trip",
