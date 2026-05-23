@@ -107,8 +107,11 @@ return (data || [])
     return trip.trip_data?.privacy !== "private";
   })
   .map((trip) => ({
-  ...trip.trip_data,
+  ...(trip.trip_data || {}),
   supabase_id: trip.id,
+  user_id: trip.user_id,
+  campgroundName: trip.trip_data?.campgroundName || trip.title || "",
+  location: trip.trip_data?.location || trip.location || "",
 }));
 
 }
