@@ -1,5 +1,40 @@
 import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabase";
+const P = {
+  bg: "#F2EDE3",
+  card: "#FDFAF4",
+  forest: "#1E3A1E",
+  pine: "#3A6645",
+  earth: "#7A5530",
+  amber: "#C8790A",
+  cream: "#E8D8B8",
+  text: "#18100A",
+  muted: "#7A6A55",
+  border: "#CCB898",
+  water: "#2A5C7A",
+  red: "#A83030",
+  gold: "#D4A017",
+  teal: "#2A7A6A",
+};
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const STORAGE_KEY = "campbook_v10";
+// =======================
+// Auth + Supabase Helpers
+// =======================
 async function signUp() {
   const email = prompt("Enter email");
   if (!email) return;
@@ -66,15 +101,14 @@ async function loadTripsFromSupabase() {
     return [];
   }
 
-  const filteredTrips = data.filter((trip) => {
+  return (data || []).filter((trip) => {
   // always show your own trips
   if (trip.user_id === user.id) return true;
 
-  // show non-private trips from others
-  return true;
+  // only show public trips from others
+  return trip.trip_data?.privacy !== "private";
 });
 
-return filteredTrips;
 }
 async function ensureProfile() {
   const {
@@ -211,38 +245,9 @@ const {
     alert("Trip saved to Supabase!");
   }
 }
-const P = {
-  bg: "#F2EDE3",
-  card: "#FDFAF4",
-  forest: "#1E3A1E",
-  pine: "#3A6645",
-  earth: "#7A5530",
-  amber: "#C8790A",
-  cream: "#E8D8B8",
-  text: "#18100A",
-  muted: "#7A6A55",
-  border: "#CCB898",
-  water: "#2A5C7A",
-  red: "#A83030",
-  gold: "#D4A017",
-  teal: "#2A7A6A",
-};
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-const STORAGE_KEY = "campbook_v10";
+// =======================
+// Campground Search
+// =======================
 async function searchCampgrounds(query) {
   if (!query || query.length < 3) return [];
 
