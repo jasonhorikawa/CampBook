@@ -7638,9 +7638,7 @@ export default function CampBook() {
       if (trips.length > 0) {
         setData((d) => ({
           ...d,
-          entries: trips
-          .map((t) => ({ ...t.trip_data, supabase_id: t.id }))
-          .filter(Boolean),
+          entries: trips,
         }));
       }
     }
