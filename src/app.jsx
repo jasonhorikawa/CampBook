@@ -7647,6 +7647,7 @@ function ProfileView({ entries, profiles, friends, darkMode, setDarkMode }) {
 // ── ROOT ──────────────────────────────────────────────────
 export default function CampBook() {
   const [data, setData] = useState(() => loadData());
+  const [feedEntries, setFeedEntries] = useState([]);
   const [tab, setTab] = useState("home");
   const [sub, setSub] = useState(null);
   const [camp, setCamp] = useState(null);
@@ -7663,6 +7664,9 @@ export default function CampBook() {
 
     if (user) {
       const trips = await loadTripsFromSupabase();
+      const feed = await loadFriendsFeedFromSupabase();
+      
+      setFeedEntries(feed);
 
       if (trips.length > 0) {
         setData((d) => ({
