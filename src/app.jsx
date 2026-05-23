@@ -6251,7 +6251,7 @@ const FeedView = ({ friends, onApproveFriend }) => {
           </div>
         </div>
       ))}
-      {FEED.map((trip) => {
+      {feedEntries.map((trip) => {
         const isLiked = liked[trip.id];
         return (
           <div key={trip.id} style={S.card}>
