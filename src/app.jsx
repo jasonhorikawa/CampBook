@@ -7435,15 +7435,18 @@ export default function CampBook() {
       
       setFeedEntries(feed);
 
-      if (trips.length > 0) {
-        setData((d) => ({
+      setData((d) => ({
   ...d,
   entries: trips,
-  friends: [
-    ...(d.friends || []).filter((f) => f.status !== "pending"),
-   
-  ],
-        }));
+  friends: friendships.map((f) => ({
+    id: f.id,
+    name: f.status === "pending" ? "Pending camper" : "Approved friend",
+    avatar: "👤",
+    color: P.amber,
+    status: f.status,
+    lastActive: null,
+  })),
+}));
       }
     }
   }
