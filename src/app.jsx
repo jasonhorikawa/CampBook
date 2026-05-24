@@ -7449,7 +7449,6 @@ export default function CampBook() {
 }));
       }
     }
-  }
 
   checkLogin();
     const {
