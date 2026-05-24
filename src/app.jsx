@@ -232,11 +232,15 @@ async function loadFriendshipsFromSupabase() {
 
   if (!user) return [];
 
-  const { data, error } = await supabase
-    .from("friendships")
-    .select("*")
-    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
-
+ const { data, error } = await supabase
+  .from("friendships")
+  .select(`
+    *,
+    requester:profiles!friendships_requester_id_fkey(id, email, display_name),
+    receiver:profiles!friendships_receiver_id_fkey(id, email, display_name)
+  `)
+  .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+  
   if (error) {
     alert("Friendships load failed: " + error.message);
     return [];
