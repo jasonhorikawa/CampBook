@@ -7805,7 +7805,6 @@ export default function CampBook() {
     ...(d.friends || []).filter((f) => f.status !== "pending"),
     ...pendingRequests,
   ],
-}));
         }));
       }
     }
