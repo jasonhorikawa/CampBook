@@ -6494,17 +6494,16 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
             Pending
           </div>
   
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
+           <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
           value={search}
           onChange={async (e) => {
-          const value = e.target.value;
-          setSearch(value);
-
-          const found = await searchProfiles(value);
-          setResults(found);
-        }}
+            const value = e.target.value;
+            setSearch(value);
+            const found = await searchProfiles(value);
+            setResults(found);
+          }}
           style={{
             flex: 1,
             padding: "10px 12px",
@@ -6517,87 +6516,19 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
           }}
         />
       </div>
+
       <div style={{ marginTop: 10 }}>
-  {results.map((profile) => (
-    <div
-      key={profile.id}
-      style={{
-        padding: "10px 12px",
-        border: `1px solid ${P.border}`,
-        borderRadius: 10,
-        marginBottom: 8,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <div>
-        <div style={{ fontWeight: 700 }}>
-          {profile.display_name || "Unnamed User"}
-        </div>
-        <div style={{ fontSize: 12, color: P.muted }}>
-          {profile.email}
-        </div>
-      </div>
-
-      <button
-        onClick={() => sendFriendRequest(profile.id)}
-        style={{
-          padding: "8px 12px",
-          borderRadius: 8,
-          border: "none",
-          background: P.forest,
-          color: "#fff",
-          fontWeight: 700,
-        }}
-      >
-        Add
-      </button>
-    </div>
-  ))}
-</div>
-
-                 <div
-  style={{
-    textAlign: "center",
-    padding: "16px",
-    fontSize: 12,
-    color: P.border,
-    fontStyle: "italic",
-  }}
->
-
-                   <div style={S.card}>
-  <div style={{ ...S.hdrCard(), padding: "14px 16px" }}>
-    <div style={{ fontSize: 11, color: "#ffffff88", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-      Friends Feed
-    </div>
-    <div style={{ fontSize: 18, fontWeight: 700, color: "#F4EFE6" }}>
-      Shared Trips
-    </div>
-  </div>
-
-  <div style={{ padding: 14 }}>
-    {feedEntries.length === 0 ? (
-      <div style={{ color: P.muted, fontSize: 13 }}>
-        No shared trips yet.
-      </div>
-    ) : (
-      feedEntries.map((trip) => (
-        <div key={trip.supabase_id} style={{ padding: "10px 0", borderBottom: `1px solid ${P.border}` }}>
-          <div style={{ fontWeight: 700, color: P.forest }}>
-            {trip.campgroundName || "Untitled Trip"}
+        {results.map((profile) => (
+          <div key={profile.id} style={{ padding: "10px 12px" }}>
+            <div>{profile.display_name || "Unnamed User"}</div>
+            <div style={{ fontSize: 12, color: P.muted }}>{profile.email}</div>
+            <button onClick={() => sendFriendRequest(profile.id)}>Add</button>
           </div>
-          <div style={{ fontSize: 12, color: P.muted }}>
-            {trip.location || "No location"}
-          </div>
-        </div>
-      ))
-    )}
-  </div>
-  </div>
+        ))}
+      </div>
+    </div>
   );
- };
+};
       
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
