@@ -6386,115 +6386,35 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
   const [results, setResults] = useState([]);
   const active = friends.filter((f) => f.status === "friend");
   const pending = friends.filter((f) => f.status === "pending");
+
   return (
     <div style={S.scroll}>
       <div style={S.card}>
         <div style={{ ...S.hdrCard(), padding: "14px 16px" }}>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#ffffff88",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              marginBottom: 3,
-            }}
-          >
+          <div style={{ fontSize: 11, color: "#ffffff88", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>
             Your Privacy
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#F4EFE6" }}>
             Who sees your trips?
           </div>
         </div>
-        <div style={{ padding: "10px 14px" }}>
-          {[
-            {
-              k: "friends",
-              l: "✅ Approved Friends Only",
-              d: "Only people you approve",
-              a: true,
-            },
-            {
-              k: "private",
-              l: "🔒 Just Me",
-              d: "Completely private",
-              a: false,
-            },
-            {
-              k: "public",
-              l: "🌍 Anyone",
-              d: "Anyone with the link",
-              a: false,
-            },
-          ].map((o) => (
-            <div
-              key={o.k}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-                padding: "9px 0",
-                borderBottom: `1px solid ${P.border}`,
-              }}
-            >
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: "50%",
-                  border: `2px solid ${o.a ? P.pine : P.border}`,
-                  background: o.a ? P.pine : "transparent",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  marginTop: 2,
-                }}
-              >
-                {o.a && (
-                  <div
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: "#fff",
-                    }}
-                  />
-                )}
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontWeight: o.a ? 700 : 400,
-                    fontSize: 14,
-                    color: o.a ? P.forest : P.muted,
-                  }}
-                >
-                  {o.l}
-                </div>
-                <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-                  {o.d}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
-      {pending.length > 0 && (
-        <>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: P.muted,
-              marginBottom: 8,
-            }}
-          >
-            Pending
+
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: P.muted, marginBottom: 8 }}>
+        Pending
+      </div>
+
+      {pending.map((f) => (
+        <div key={f.id} style={S.card}>
+          <div style={{ padding: "12px 14px" }}>
+            <div style={{ fontWeight: 700 }}>{f.name}</div>
+            <div style={{ fontSize: 12, color: P.muted }}>Wants to see your camp trips</div>
+            <button onClick={() => onApproveFriend(f.id)}>✓ Approve</button>
           </div>
-  
-           <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
           placeholder="Search by name..."
           value={search}
@@ -6504,20 +6424,10 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
             const found = await searchProfiles(value);
             setResults(found);
           }}
-          style={{
-            flex: 1,
-            padding: "10px 12px",
-            background: "#fff",
-            border: `1.5px solid ${P.border}`,
-            borderRadius: 10,
-            fontSize: 14,
-            fontFamily: "'Lora',Georgia,serif",
-            outline: "none",
-          }}
         />
       </div>
 
-      <div style={{ marginTop: 10 }}>
+      <div>
         {results.map((profile) => (
           <div key={profile.id} style={{ padding: "10px 12px" }}>
             <div>{profile.display_name || "Unnamed User"}</div>
@@ -6527,6 +6437,34 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
         ))}
       </div>
 
+      <div style={S.card}>
+        <div style={{ ...S.hdrCard(), padding: "14px 16px" }}>
+          <div style={{ fontSize: 11, color: "#ffffff88", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Friends Feed
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#F4EFE6" }}>
+            Shared Trips
+          </div>
+        </div>
+
+        <div style={{ padding: 14 }}>
+          {feedEntries.length === 0 ? (
+            <div style={{ color: P.muted, fontSize: 13 }}>No shared trips yet.</div>
+          ) : (
+            feedEntries.map((trip) => (
+              <div key={trip.supabase_id} style={{ padding: "10px 0", borderBottom: `1px solid ${P.border}` }}>
+                <div style={{ fontWeight: 700, color: P.forest }}>
+                  {trip.campgroundName || "Untitled Trip"}
+                </div>
+                <div style={{ fontSize: 12, color: P.muted }}>
+                  {trip.location || "No location"}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
       
