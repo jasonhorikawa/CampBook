@@ -6073,10 +6073,10 @@ const PinsView = ({ pins, setPins, entries }) => {
 };
 
 // ── Feed ──────────────────────────────────────────────────
-const FeedView = ({ friends, onApproveFriend }) => {
+const FeedView = ({ friends }) => {
   const [liked, setLiked] = useState({});
   const [showComment, setShowComment] = useState({});
-  const pending = friends.filter((f) => f.status === "pending");
+  
   return (
     <div style={S.scroll}>
       <div
@@ -6135,66 +6135,7 @@ const FeedView = ({ friends, onApproveFriend }) => {
           />
         </div>
       </div>
-      {pending.map((f) => (
-        <div
-          key={f.id}
-          style={{
-            background: "#FFF8ED",
-            border: `1.5px solid ${P.amber}55`,
-            borderRadius: 12,
-            padding: "12px 14px",
-            marginBottom: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <Avatar emoji={f.avatar} color={f.color} size={36} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: P.amber }}>
-              {f.name} wants to follow your trips
-            </div>
-            <div style={{ fontSize: 12, color: P.muted, marginTop: 1 }}>
-              Approve to see each other's camp logs
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={() => {
-                alert("Clicked pending id: " + f.id);
-                onApproveFriend(f.id);
-              }}
-              style={{
-                background: P.pine,
-                border: "none",
-                color: "#fff",
-                borderRadius: 8,
-                padding: "6px 12px",
-                fontFamily: "'Lora',Georgia,serif",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              ✓
-            </button>
-            <button
-              style={{
-                background: "transparent",
-                border: `1px solid ${P.border}`,
-                color: P.muted,
-                borderRadius: 8,
-                padding: "6px 10px",
-                fontFamily: "'Lora',Georgia,serif",
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      ))}
+     
       {feedEntries.map((trip) => {
         const isLiked = liked[trip.id];
         return (
