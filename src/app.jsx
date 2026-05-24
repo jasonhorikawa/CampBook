@@ -133,50 +133,31 @@ async function loadFriendsFeedFromSupabase() {
     return [];
   }
 
-  return (data || [])
-   .map((trip) => ({
-  ...(trip.trip_data || {}),
-  supabase_id: trip.id,
-  user_id: trip.user_id,
+  const mapped = (data || [])
+    .filter((trip) => trip.trip_data?.privacy !== "private")
+    .map((trip) => {
+      const t = trip.trip_data || {};
 
-  campground:
-    trip.trip_data?.campground ||
-    trip.trip_data?.campgroundName ||
-    trip.title ||
-    "",
+      return {
+        ...t,
+        supabase_id: trip.id,
+        id: trip.id,
+        user_id: trip.user_id,
+        campground: t.campground || t.campgroundName || trip.title || "",
+        campgroundName: t.campgroundName || t.campground || trip.title || "",
+        location: t.location || trip.location || "",
+        photos: t.photos || t.images || [],
+        userName: t.userName || "Camper",
+        userAvatar: t.userAvatar || "🏕️",
+        userColor: t.userColor || "#2F5D50",
+        notes: t.notes || "",
+        rating: t.rating || 0,
+        timeAgo: "Shared trip",
+      };
+    });
 
-  campgroundName:
-    trip.trip_data?.campgroundName ||
-    trip.trip_data?.campground ||
-    trip.title ||
-    "",
-
-  location:
-    trip.trip_data?.location ||
-    trip.location ||
-    "",
-
-  photos:
-    trip.trip_data?.photos || [],
-
-  userName:
-    trip.trip_data?.userName || "Camper",
-
-  userAvatar:
-    trip.trip_data?.userAvatar || "🏕️",
-
-  userColor:
-    trip.trip_data?.userColor || "#2F5D50",
-
-  notes:
-    trip.trip_data?.notes || "",
-
-  rating:
-    trip.trip_data?.rating || 0,
-
-  timeAgo:
-    "Shared trip",
-}))
+  return mapped;
+  
 }
 
 async function ensureProfile() {
