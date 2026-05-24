@@ -6262,7 +6262,10 @@ const FeedView = ({ friends, onApproveFriend }) => {
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={() => onApproveFriend(f.id)}
+              onClick={() => {
+                alert("Clicked pending id: " + f.id);
+                onApproveFriend(f.id);
+              }}
               style={{
                 background: P.pine,
                 border: "none",
