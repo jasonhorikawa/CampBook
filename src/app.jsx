@@ -7429,6 +7429,22 @@ export default function CampBook() {
       const trips = await loadTripsFromSupabase();
       const feed = await loadFriendsFeedFromSupabase();
       const friendships = await loadFriendshipsFromSupabase();
+      const profileIds = [
+  ...new Set(
+    friendships
+      .flatMap((f) => [f.requester_id, f.receiver_id])
+      .filter((id) => id && id !== user.id)
+  ),
+];
+
+const { data: friendProfiles } = await supabase
+  .from("profiles")
+  .select("id, email, display_name")
+  .in("id", profileIds);
+
+const profilesById = Object.fromEntries(
+  (friendProfiles || []).map((p) => [p.id, p])
+);
       
       setFeedEntries(feed);
 
@@ -7437,15 +7453,21 @@ export default function CampBook() {
   entries: trips,
   friends: friendships
   .filter((f, i, arr) => arr.findIndex((x) => x.id === f.id) === i)
-  .map((f) => ({
-    id: f.id,
-    name: f.status === "pending" ? "Pending camper" : "Approved friend",
-    avatar: "👤",
-    color: P.amber,
-    status: f.status,
-    lastActive: null,
-  })),
-}));
+  .map((f) => {
+    const otherUserId =
+      f.requester_id === user.id ? f.receiver_id : f.requester_id;
+
+    const profile = profilesById[otherUserId];
+
+    return {
+      id: f.id,
+      name: profile?.display_name || profile?.email || "Camper",
+      avatar: "👤",
+      color: P.amber,
+      status: f.status,
+      lastActive: null,
+    };
+  }),
       }
     }
 
