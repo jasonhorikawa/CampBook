@@ -225,6 +225,26 @@ async function searchProfiles(query) {
   return data || [];
 }
 
+async function loadFriendshipsFromSupabase() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("friendships")
+    .select("*")
+    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
+  if (error) {
+    alert("Friendships load failed: " + error.message);
+    return [];
+  }
+
+  return data || [];
+}
+
 function compressImage(file, maxWidth = 1200, quality = 0.75) {
   return new Promise((resolve) => {
     const img = new Image();
