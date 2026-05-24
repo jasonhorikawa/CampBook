@@ -6766,26 +6766,7 @@ const FriendsView = ({ friends, setFriends, feedEntries = [] }) => {
     fontStyle: "italic",
   }}
 >
-  <button
-    onClick={async () => {
-      alert("Button clicked");
 
-      await sendFriendRequest("5bb388f9-9221-4161-89e1-8d70a90af18d");
-    }}
-    style={{
-      padding: "10px 14px",
-      borderRadius: 10,
-      border: "1px solid #3A6645",
-      background: "#fff",
-      color: "#3A6645",
-      fontWeight: 700,
-      marginBottom: 10,
-    }}
-  >
-    Add Test Friend
-  </button>
-
-  <div>Friend sync requires backend — coming in v2.0</div>
                    <div style={S.card}>
   <div style={{ ...S.hdrCard(), padding: "14px 16px" }}>
     <div style={{ fontSize: 11, color: "#ffffff88", letterSpacing: "0.1em", textTransform: "uppercase" }}>
