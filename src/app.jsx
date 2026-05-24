@@ -7829,10 +7829,21 @@ return () => subscription.unsubscribe();
       bucketList: typeof fn === "function" ? fn(d.bucketList || []) : fn,
     }));
   const setDarkMode = (v) => setData((d) => ({ ...d, darkMode: v }));
-  const approveFriend = (id) =>
-    setFriends((p) =>
-      p.map((f) => (f.id === id ? { ...f, status: "friend" } : f))
-    );
+  const approveFriend = async (id) => {
+  const { error } = await supabase
+    .from("friendships")
+    .update({ status: "friend" })
+    .eq("id", id);
+
+  if (error) {
+    alert("Approve failed: " + error.message);
+    return;
+  }
+
+  setFriends((p) =>
+    p.map((f) => (f.id === id ? { ...f, status: "friend" } : f))
+  );
+};
   const toggleFavorite = (c) =>
     setData((d) => ({
       ...d,
