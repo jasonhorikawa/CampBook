@@ -370,7 +370,7 @@ function saveData(d) {
 }
 
 // ── Mock data ─────────────────────────────────────────────
-const INITIAL_FRIENDS = [
+const INITIAL_FRIENDS = [];
   {
     id: "f1",
     name: "Mike R.",
