@@ -6493,48 +6493,6 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
           >
             Pending
           </div>
-          {pending.map((f) => (
-            <div key={f.id} style={S.card}>
-              <div
-                style={{
-                  padding: "12px 14px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <Avatar emoji={f.avatar} color={f.color} size={44} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{f.name}</div>
-                  <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-                    Wants to see your camp trips
-                  </div>
-                </div>
-              </div>
-              <div style={{ padding: "0 14px 12px", display: "flex", gap: 8 }}>
-                <Btn
-                  small
-                  color={P.pine}
-                  onClick={() =>
-                    setFriends((p) =>
-                      p.map((x) =>
-                        x.id === f.id ? { ...x, status: "friend" } : x
-                      )
-                    )
-                  }
-                  sx={{ flex: 1 }}
-                >
-                  ✓ Approve
-                </Btn>
-                <Btn small outline color={P.red} sx={{ flex: 1 }}>
-                  ✕ Decline
-                </Btn>
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-      
   
       <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
         <input
