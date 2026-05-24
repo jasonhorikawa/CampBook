@@ -134,14 +134,49 @@ async function loadFriendsFeedFromSupabase() {
   }
 
   return (data || [])
-    .filter((trip) => trip.trip_data?.privacy !== "private")
-    .map((trip) => ({
-      ...(trip.trip_data || {}),
-      supabase_id: trip.id,
-      user_id: trip.user_id,
-      campgroundName: trip.trip_data?.campgroundName || trip.title || "",
-      location: trip.trip_data?.location || trip.location || "",
-    }));
+   .map((trip) => ({
+  ...(trip.trip_data || {}),
+  supabase_id: trip.id,
+  user_id: trip.user_id,
+
+  campground:
+    trip.trip_data?.campground ||
+    trip.trip_data?.campgroundName ||
+    trip.title ||
+    "",
+
+  campgroundName:
+    trip.trip_data?.campgroundName ||
+    trip.trip_data?.campground ||
+    trip.title ||
+    "",
+
+  location:
+    trip.trip_data?.location ||
+    trip.location ||
+    "",
+
+  photos:
+    trip.trip_data?.photos || [],
+
+  userName:
+    trip.trip_data?.userName || "Camper",
+
+  userAvatar:
+    trip.trip_data?.userAvatar || "🏕️",
+
+  userColor:
+    trip.trip_data?.userColor || "#2F5D50",
+
+  notes:
+    trip.trip_data?.notes || "",
+
+  rating:
+    trip.trip_data?.rating || 0,
+
+  timeAgo:
+    "Shared trip",
+}))
 }
 
 async function ensureProfile() {
