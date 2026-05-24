@@ -6521,6 +6521,7 @@ const FeedView = ({ friends, onApproveFriend }) => {
 
 const FriendsView = ({ friends, setFriends, feedEntries = [] }) => {
   const [search, setSearch] = useState("");
+  const [results, setResults] = useState([]);
   const active = friends.filter((f) => f.status === "friend");
   const pending = friends.filter((f) => f.status === "pending");
   return (
@@ -6677,7 +6678,13 @@ const FriendsView = ({ friends, setFriends, feedEntries = [] }) => {
         <input
           placeholder="Search by name..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={async (e) => {
+          const value = e.target.value;
+          setSearch(value);
+
+          const found = await searchProfiles(value);
+          setResults(found);
+        }}
           style={{
             flex: 1,
             padding: "10px 12px",
@@ -6690,6 +6697,45 @@ const FriendsView = ({ friends, setFriends, feedEntries = [] }) => {
           }}
         />
       </div>
+      <div style={{ marginTop: 10 }}>
+  {results.map((profile) => (
+    <div
+      key={profile.id}
+      style={{
+        padding: "10px 12px",
+        border: `1px solid ${P.border}`,
+        borderRadius: 10,
+        marginBottom: 8,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <div>
+        <div style={{ fontWeight: 700 }}>
+          {profile.display_name || "Unnamed User"}
+        </div>
+        <div style={{ fontSize: 12, color: P.muted }}>
+          {profile.email}
+        </div>
+      </div>
+
+      <button
+        onClick={() => sendFriendRequest(profile.id)}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 8,
+          border: "none",
+          background: P.forest,
+          color: "#fff",
+          fontWeight: 700,
+        }}
+      >
+        Add
+      </button>
+    </div>
+  ))}
+</div>
 
                  <div
   style={{
