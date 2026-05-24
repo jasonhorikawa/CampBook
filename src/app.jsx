@@ -7466,10 +7466,11 @@ const profilesById = Object.fromEntries(
       color: P.amber,
       status: f.status,
       lastActive: null,
-    };
-  }),
-      }
+     }),
+}));
+
     }
+  }
 
   checkLogin();
     const {
