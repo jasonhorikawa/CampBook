@@ -7737,11 +7737,11 @@ return () => subscription.unsubscribe();
     .from("friendships")
     .update({ status: "friend" })
     .eq("id", id);
-
-  if (error) {
-    alert("Approve failed: " + error.message);
-    return;
-  }
+    
+    if (error) {
+  alert("Approve failed: " + error.message);
+  return;
+}
 
   setFriends((p) =>
     p.map((f) => (f.id === id ? { ...f, status: "friend" } : f))
