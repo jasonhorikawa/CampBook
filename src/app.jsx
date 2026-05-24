@@ -234,11 +234,7 @@ async function loadFriendshipsFromSupabase() {
 
  const { data, error } = await supabase
   .from("friendships")
-  .select(`
-    *,
-    requester:profiles!friendships_requester_id_fkey(id, email, display_name),
-    receiver:profiles!friendships_receiver_id_fkey(id, email, display_name)
-  `)
+  .select("*")
   .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
   
   if (error) {
