@@ -7438,7 +7438,9 @@ export default function CampBook() {
       setData((d) => ({
   ...d,
   entries: trips,
-  friends: friendships.map((f) => ({
+  friends: friendships
+  .filter((f, i, arr) => arr.findIndex((x) => x.id === f.id) === i)
+  .map((f) => ({
     id: f.id,
     name: f.status === "pending" ? "Pending camper" : "Approved friend",
     avatar: "👤",
