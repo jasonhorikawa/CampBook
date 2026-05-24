@@ -6595,9 +6595,9 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
       ))
     )}
   </div>
-</div>
+  </div>
   );
-};
+  };
       
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
