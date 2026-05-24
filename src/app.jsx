@@ -6202,23 +6202,20 @@ const FeedView = ({ friends }) => {
             </div>
             <div style={{ display: "flex", gap: 3, padding: "8px 14px 0" }}>
               {trip.photos.map((p, i) => (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1,
-                    aspectRatio: "1",
-                    borderRadius: 7,
-                    background: trip.userColor + "22",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 22,
-                    border: `1px solid ${P.border}`,
-                  }}
-                >
-                  {p}
-                </div>
-              ))}
+  <img
+    key={i}
+    src={p.url || p}
+    alt=""
+    style={{
+      flex: 1,
+      aspectRatio: "1",
+      borderRadius: 7,
+      objectFit: "cover",
+      border: `1px solid ${P.border}`,
+      width: "100%",
+    }}
+  />
+))}
             </div>
             <div style={{ padding: "10px 14px" }}>
               <p
