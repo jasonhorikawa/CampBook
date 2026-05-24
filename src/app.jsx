@@ -6539,7 +6539,7 @@ const FeedView = ({ friends, onApproveFriend }) => {
   );
 };
 
-const FriendsView = ({ friends, setFriends, feedEntries = [] }) => {
+const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend }) => {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState([]);
   const active = friends.filter((f) => f.status === "friend");
@@ -8173,10 +8173,11 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
       )}
       {!sub && tab === "friends" && (
        <FriendsView
-  friends={data.friends || []}
-  setFriends={setFriends}
-  feedEntries={feedEntries}
-/>
+        friends={data.friends || []}
+        setFriends={setFriends}
+        feedEntries={feedEntries}
+        onApproveFriend={approveFriend}
+      />
       )}
       {!sub && tab === "crew" && (
         <CrewView profiles={data.profiles || []} setProfiles={setProfiles} />
