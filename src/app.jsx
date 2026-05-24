@@ -7830,6 +7830,8 @@ return () => subscription.unsubscribe();
     }));
   const setDarkMode = (v) => setData((d) => ({ ...d, darkMode: v }));
   const approveFriend = async (id) => {
+    alert("Approving friendship ID: " + id);
+    
   const { error } = await supabase
     .from("friendships")
     .update({ status: "friend" })
