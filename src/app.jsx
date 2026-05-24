@@ -7565,16 +7565,6 @@ export default function CampBook() {
       const trips = await loadTripsFromSupabase();
       const feed = await loadFriendsFeedFromSupabase();
       const friendships = await loadFriendshipsFromSupabase();
-      const pendingRequests = friendships
-  .filter((f) => f.receiver_id === user.id && f.status === "pending")
-  .map((f) => ({
-    id: f.id,
-    name: "Pending camper",
-    avatar: "👤",
-    color: P.amber,
-    status: "pending",
-    lastActive: null,
-  }));
       
       setFeedEntries(feed);
 
@@ -7584,7 +7574,7 @@ export default function CampBook() {
   entries: trips,
   friends: [
     ...(d.friends || []).filter((f) => f.status !== "pending"),
-    ...pendingRequests,
+   
   ],
         }));
       }
