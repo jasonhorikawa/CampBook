@@ -6569,7 +6569,8 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
           scrollSnapType: "x mandatory",
         }}
       >
-        {(selectedTrip.photos || []).map((photo, i) => (
+      
+       {(selectedTrip.photos || []).map((photo, i) => (
           <img
             key={i}
             src={photo.url || photo}
@@ -6615,6 +6616,7 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
     </div>
   </div>
 )}
+       
   );
 };
       
