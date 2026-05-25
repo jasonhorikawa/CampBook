@@ -6464,16 +6464,37 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
           {feedEntries.length === 0 ? (
             <div style={{ color: P.muted, fontSize: 13 }}>No shared trips yet.</div>
           ) : (
-            feedEntries.map((trip) => (
-              <div key={trip.supabase_id} style={{ padding: "10px 0", borderBottom: `1px solid ${P.border}` }}>
-                <div style={{ fontWeight: 700, color: P.forest }}>
-                  {trip.campgroundName || "Untitled Trip"}
-                </div>
-                <div style={{ fontSize: 12, color: P.muted }}>
-                  {trip.location || "No location"}
-                </div>
-              </div>
-            ))
+           feedEntries.map((trip) => (
+  <div key={trip.supabase_id} style={S.card}>
+    {trip.photos?.[0] && (
+      <img
+        src={trip.photos[0].url || trip.photos[0]}
+        alt=""
+        style={{
+          width: "100%",
+          height: 180,
+          objectFit: "cover",
+        }}
+      />
+    )}
+
+    <div style={{ padding: "12px 14px" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: P.forest }}>
+        {trip.campgroundName || trip.campground || "Untitled Trip"}
+      </div>
+
+      <div style={{ fontSize: 13, color: P.muted, marginTop: 4 }}>
+        📍 {trip.location || "No location"}
+      </div>
+
+      {trip.notes && (
+        <div style={{ fontSize: 14, marginTop: 10, lineHeight: 1.4 }}>
+          {trip.notes}
+        </div>
+      )}
+    </div>
+  </div>
+))
           )}
         </div>
       </div>
