@@ -6397,6 +6397,7 @@ const FeedView = ({ friends }) => {
 const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend }) => {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState([]);
+  const [selectedTrip, setSelectedTrip] = useState(null);
   const active = friends.filter((f) => f.status === "friend");
   const pending = friends.filter((f) => f.status === "pending");
 
@@ -6465,7 +6466,11 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
             <div style={{ color: P.muted, fontSize: 13 }}>No shared trips yet.</div>
           ) : (
          feedEntries.map((trip) => (
-  <div key={trip.supabase_id} style={S.card}>
+  <div
+  key={trip.supabase_id}
+  style={{ ...S.card, cursor: "pointer", overflow: "hidden" }}
+  onClick={() => setSelectedTrip(trip)}
+>
     {trip.photos?.length > 0 && (
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 3 }}>
         <img
