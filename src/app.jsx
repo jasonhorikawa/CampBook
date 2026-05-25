@@ -6464,7 +6464,7 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
           {feedEntries.length === 0 ? (
             <div style={{ color: P.muted, fontSize: 13 }}>No shared trips yet.</div>
           ) : (
-          feedEntries.map((trip) => (
+         feedEntries.map((trip) => (
   <div key={trip.supabase_id} style={S.card}>
     {trip.photos?.length > 0 && (
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 3 }}>
@@ -6507,24 +6507,6 @@ const FriendsView = ({ friends, setFriends, feedEntries = [], onApproveFriend })
           🌙 {trip.nights} nights
         </div>
       )}
-
-      {trip.notes && (
-        <div style={{ fontSize: 14, marginTop: 10, lineHeight: 1.4 }}>
-          {trip.notes}
-        </div>
-      )}
-    </div>
-  </div>
-))
-
-    <div style={{ padding: "12px 14px" }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: P.forest }}>
-        {trip.campgroundName || trip.campground || "Untitled Trip"}
-      </div>
-
-      <div style={{ fontSize: 13, color: P.muted, marginTop: 4 }}>
-        📍 {trip.location || "No location"}
-      </div>
 
       {trip.notes && (
         <div style={{ fontSize: 14, marginTop: 10, lineHeight: 1.4 }}>
