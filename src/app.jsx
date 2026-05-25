@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabase";
-import FriendsView from "./components/FriendsView.jsx";
+import FriendsView from "./src/components/FriendsView.jsx";
 const P = {
   bg: "#F2EDE3",
   card: "#FDFAF4",
