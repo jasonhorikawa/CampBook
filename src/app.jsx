@@ -145,7 +145,6 @@ const { data, error } = await supabase
   .select("*")
   .in("user_id", friendIds)
   .order("created_at", { ascending: false });
-);
 
 if (friendIds.length === 0) return [];
 
