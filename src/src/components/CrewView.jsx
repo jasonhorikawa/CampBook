@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("👤");
@@ -127,3 +128,4 @@ const CrewView = ({ profiles, setProfiles }) => {
     </div>
   );
 };
+export default CrewView;
