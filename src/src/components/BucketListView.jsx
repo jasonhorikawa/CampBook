@@ -4,6 +4,8 @@ function BucketListView({
   setBucketList,
   favorites,
   onSelectCamp,
+  S,
+  P,
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
