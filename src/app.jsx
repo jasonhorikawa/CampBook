@@ -7346,6 +7346,7 @@ export default function CampBook() {
   const [sub, setSub] = useState(null);
   const [camp, setCamp] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [selectedTrip, setSelectedTrip] = useState(null);
 
   useEffect(() => {
     saveData(data);
