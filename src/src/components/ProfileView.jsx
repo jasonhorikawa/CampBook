@@ -1,5 +1,5 @@
 import React from "react";
-function ProfileView({ entries, profiles, friends, darkMode, setDarkMode }) {
+function ProfileView({ entries, profiles, friends, darkMode, setDarkMode, calcTripStats }) {
   const st = calcTripStats(entries);
   return (
     <div style={S.scroll}>
