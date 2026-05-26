@@ -8,6 +8,7 @@ function BucketListView({
   P,
   Btn,
   Inp,
+  SLabel={SLabel}
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
