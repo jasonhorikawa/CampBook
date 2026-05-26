@@ -124,42 +124,34 @@ async function loadFriendsFeedFromSupabase() {
   if (!user) return [];
 
   const { data: friendships, error: friendshipError } = await supabase
-  .from("friendships")
-  .select("*")
-  .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
-  .eq("status", "friend");
+    .from("friendships")
+    .select("*")
+    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .eq("status", "friend");
 
-if (friendshipError) {
-  alert("Friendship feed load failed: " + friendshipError.message);
-  return [];
-}
+  if (friendshipError) {
+    alert("Friendship feed load failed: " + friendshipError.message);
+    return [];
+  }
 
-const friendIds = (friendships || []).map((f) =>
-  f.requester_id === user.id ? f.receiver_id : f.requester_id
-);
+  const friendIds = (friendships || []).map((f) =>
+    f.requester_id === user.id ? f.receiver_id : f.requester_id
+  );
 
-if (friendIds.length === 0) return [];
+  if (friendIds.length === 0) return [];
 
-const { data, error } = await supabase
-  .from("trips")
-  .select("*")
-  .in("user_id", friendIds)
-  .order("created_at", { ascending: false });
-
-if (friendIds.length === 0) return [];
-
-const { data, error } = await supabase
-  .from("trips")
-  .select("*")
-  .in("user_id", friendIds)
-  .order("created_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("trips")
+    .select("*")
+    .in("user_id", friendIds)
+    .order("created_at", { ascending: false });
 
   if (error) {
     alert("Feed load failed: " + error.message);
     return [];
   }
 
-  const mapped = (data || [])
+  return (data || [])
     .filter((trip) => trip.trip_data?.privacy !== "private")
     .map((trip) => {
       const t = trip.trip_data || {};
@@ -181,10 +173,8 @@ const { data, error } = await supabase
         timeAgo: "Shared trip",
       };
     });
-
-  return mapped;
-  
 }
+
 
 async function ensureProfile() {
   const {
