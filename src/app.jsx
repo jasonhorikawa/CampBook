@@ -7784,11 +7784,15 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
       )}
       {!sub && tab === "friends" && (
        <FriendsView
-        friends={data.friends || []}
-        setFriends={setFriends}
-        feedEntries={feedEntries}
-        onApproveFriend={approveFriend}
-      />
+  friends={data.friends || []}
+  feedEntries={feedEntries}
+  onApproveFriend={approveFriend}
+  searchProfiles={searchProfiles}
+  sendFriendRequest={sendFriendRequest}
+  setSelectedTrip={setSelectedTrip}
+  P={P}
+  S={S}
+/>
       )}
       {!sub && tab === "crew" && (
         <CrewView profiles={data.profiles || []} setProfiles={setProfiles} />
