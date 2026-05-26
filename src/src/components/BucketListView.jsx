@@ -6,6 +6,8 @@ function BucketListView({
   onSelectCamp,
   S,
   P,
+  Btn,
+  Inp,
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
