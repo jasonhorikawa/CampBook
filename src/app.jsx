@@ -6394,6 +6394,16 @@ const FeedView = ({ friends }) => {
   );
 };
 
+<FriendsView
+  friends={data.friends || []}
+  feedEntries={feedEntries}
+  onApproveFriend={approveFriend}
+  searchProfiles={searchProfiles}
+  sendFriendRequest={sendFriendRequest}
+  setSelectedTrip={setSelectedTrip}
+  P={P}
+  S={S}
+/>
       
 const CrewView = ({ profiles, setProfiles }) => {
   const [name, setName] = useState("");
