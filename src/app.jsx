@@ -123,11 +123,25 @@ async function loadFriendsFeedFromSupabase() {
 
   if (!user) return [];
 
-  const { data, error } = await supabase
-    .from("trips")
-    .select("*")
-    .neq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const { data: friendships } = await supabase
+  .from("friendships")
+  .select("*")
+  .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+  .eq("status", "accepted");
+
+const friendIds = (friendships || []).map((f) =>
+  f.requester_id === user.id
+    ? f.addressee_id
+    : f.requester_id
+);
+
+if (friendIds.length === 0) return [];
+
+const { data, error } = await supabase
+  .from("trips")
+  .select("*")
+  .in("user_id", friendIds)
+  .order("created_at", { ascending: false });
 
   if (error) {
     alert("Feed load failed: " + error.message);
