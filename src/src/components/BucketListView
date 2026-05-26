@@ -132,3 +132,4 @@ function BucketListView({
     </div>
   );
 }
+export default BucketListView;
