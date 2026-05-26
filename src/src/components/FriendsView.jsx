@@ -201,7 +201,60 @@ export default function FriendsView({
 
               {selectedTrip.dates && <div style={{ marginTop: 8 }}>🗓 {selectedTrip.dates}</div>}
               {selectedTrip.nights && <div style={{ marginTop: 8 }}>🌙 {selectedTrip.nights} nights</div>}
-              {selectedTrip.notes && <div style={{ marginTop: 16, lineHeight: 1.5 }}>{selectedTrip.notes}</div>}
+              <div style={{ marginTop: 18, lineHeight: 1.5 }}>
+  {selectedTrip.notes && (
+    <div style={{ marginBottom: 14 }}>
+      <b>Notes</b>
+      <div>{selectedTrip.notes}</div>
+    </div>
+  )}
+
+  {selectedTrip.campsite && (
+    <div style={{ marginBottom: 14 }}>
+      <b>Campsite Info</b>
+      <div>{selectedTrip.campsite}</div>
+    </div>
+  )}
+
+  {selectedTrip.siteNumber && (
+    <div style={{ marginBottom: 14 }}>
+      <b>Site Number</b>
+      <div>{selectedTrip.siteNumber}</div>
+    </div>
+  )}
+
+  {selectedTrip.fishing && (
+    <div style={{ marginBottom: 14 }}>
+      <b>Fishing Info</b>
+      <div>{selectedTrip.fishing}</div>
+    </div>
+  )}
+
+  {selectedTrip.fishingLog?.length > 0 && (
+    <div style={{ marginBottom: 14 }}>
+      <b>Fishing Log</b>
+      {selectedTrip.fishingLog.map((fish, i) => (
+        <div key={i}>🎣 {fish.species || fish.name || JSON.stringify(fish)}</div>
+      ))}
+    </div>
+  )}
+
+  {selectedTrip.packingList?.length > 0 && (
+    <div style={{ marginBottom: 14 }}>
+      <b>Packing List</b>
+      {selectedTrip.packingList.map((item, i) => (
+        <div key={i}>• {item.name || item.item || item}</div>
+      ))}
+    </div>
+  )}
+
+  {selectedTrip.weather && (
+    <div style={{ marginBottom: 14 }}>
+      <b>Weather</b>
+      <div>{selectedTrip.weather}</div>
+    </div>
+  )}
+</div>
             </div>
           </div>
         </div>
