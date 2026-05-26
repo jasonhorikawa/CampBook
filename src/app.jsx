@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabase";
 import FriendsView from "./src/components/FriendsView.jsx";
 import CrewView from "./src/components/CrewView.jsx";
+import BucketListView from "./src/components/BucketListView.jsx";
 const P = {
   bg: "#F2EDE3",
   card: "#FDFAF4",
