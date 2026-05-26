@@ -7532,6 +7532,8 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
           onSelectCamp={goDetail}
           S={S}
           P={P}
+          Btn={Btn}
+          Inp={Inp}
         />
       )}
       {!sub && tab === "profile" && (
