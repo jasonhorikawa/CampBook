@@ -7530,6 +7530,8 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
           setBucketList={setBucketList}
           favorites={data.favorites || []}
           onSelectCamp={goDetail}
+          S={S}
+          P={P}
         />
       )}
       {!sub && tab === "profile" && (
