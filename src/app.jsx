@@ -7397,6 +7397,7 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
           friends={data.friends || []}
           darkMode={!!data.darkMode}
           setDarkMode={setDarkMode}
+          calcTripStats={calcTripStats}
         />
       )}
       {!sub && tab === "friends" && (
