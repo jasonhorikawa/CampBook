@@ -6957,72 +6957,33 @@ export default function CampBook() {
   const [editing, setEditing] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
 
-  useEffect(() => {
-    saveData(data);
-  }, [data]);
-  useEffect(() => {
+ useEffect(() => {
   async function checkLogin() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
-      const trips = await loadTripsFromSupabase();
-      const feed = [];
-      const friendships = await loadFriendships();
-      const profileIds = [
-  ...new Set(
-    friendships
-      .flatMap((f) => [f.requester_id, f.receiver_id])
-      .filter((id) => id && id !== user.id)
-  ),
-];
+    if (!user) return;
 
-const { data: friendProfiles } = await supabase
-  .from("profiles")
-  .select("id, email, display_name")
-  .in("id", profileIds);
+    const trips = await loadTripsFromSupabase();
+    const friendships = await loadFriendshipsFromSupabase();
 
-const profilesById = Object.fromEntries(
-  (friendProfiles || []).map((p) => [p.id, p])
-);
-      
-      setFeedEntries(feed);
-
-      setData((d) => ({
-  ...d,
-  entries: trips,
-  friends: friendships
-  .filter((f, i, arr) => arr.findIndex((x) => x.id === f.id) === i)
-  .map((f) => {
-    const otherUserId =
-      f.requester_id === user.id ? f.receiver_id : f.requester_id;
-
-    const profile = profilesById[otherUserId];
-
-    return {
-      id: f.id,
-      name: profile?.display_name || profile?.email || "Camper",
-      avatar: "👤",
-      color: P.amber,
-      status: f.status,
-      lastActive: null,
-     };
-  }),
-}));
-    }
+    setData((d) => ({
+      ...d,
+      entries: trips,
+      friends: friendships,
+    }));
   }
 
   checkLogin();
-    const {
-  data: { subscription },
-} = supabase.auth.onAuthStateChange((_event, session) => {
-  if (session) {
-    checkLogin();
-  }
-});
 
-return () => subscription.unsubscribe();
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) checkLogin();
+  });
+
+  return () => subscription.unsubscribe();
 }, []);
 
   const setEntries = (fn) =>
@@ -7193,46 +7154,58 @@ return () => subscription.unsubscribe();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
-  alert("Please sign in before saving a trip.");
-  return;
-}
+    alert("Please sign in before saving a trip.");
+    return;
+  }
 
-  const updatedForm = {
-  ...form,
-  supabase_id: editing?.supabase_id || form.supabase_id,
-};
-
-if (editing?.id) {
-  update(editing.id, updatedForm);
-} else if (editing?.supabase_id) {
-  setEntries((p) =>
-    p.map((e) =>
-      e.supabase_id === editing.supabase_id ? updatedForm : e
-    )
-  );
-} 
+  const existingId = editing?.supabase_id || form.supabase_id;
+  const coverPhoto = form.photos?.[0]?.url || "";
 
   const tripRow = {
-  title: form.campgroundName || "Untitled Trip",
-  location: form.location || "",
-  user_id: user.id,
-  trip_data: {
-    ...form,
-    supabase_id: editing?.supabase_id || form.supabase_id,
-  },
-};
+    title: form.campgroundName || "Untitled Trip",
+    location: form.location || "",
+    user_id: user.id,
+    cover_photo: coverPhoto,
+    trip_data: {
+      ...form,
+      cover: coverPhoto,
+    },
+  };
 
-if (editing?.supabase_id || form.supabase_id) {
-  tripRow.id = editing?.supabase_id || form.supabase_id;
-}
+  if (existingId) {
+    tripRow.id = existingId;
+  }
 
-const { error } = await supabase.from("trips").upsert([tripRow]);
+  const { data: savedRows, error } = await supabase
+    .from("trips")
+    .upsert([tripRow])
+    .select();
 
   if (error) {
     alert("Cloud save failed: " + error.message);
     return;
   }
+
+  const savedTrip = savedRows?.[0];
+
+  const updatedForm = {
+    ...form,
+    supabase_id: savedTrip?.id || existingId,
+    user_id: user.id,
+    cover: coverPhoto,
+  };
+
+  setEntries((prev) => {
+    if (existingId) {
+      return prev.map((e) =>
+        e.supabase_id === existingId ? updatedForm : e
+      );
+    }
+
+    return [updatedForm, ...prev];
+  });
 
   setSub(null);
   setEditing(null);
