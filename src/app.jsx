@@ -4309,7 +4309,7 @@ entries.forEach((e) => {
                     marginBottom: 10,
                   }}
                 >
-                  {entry.photos.map((p) => (
+                  {(entry.photos || []).slice(0, 3).map((p) => (
                     <div
                       key={p.id}
                       onClick={() => {
