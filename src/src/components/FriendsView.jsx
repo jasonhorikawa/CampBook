@@ -209,6 +209,9 @@ export default function FriendsView({
                   <div style={{ fontSize: 18, fontWeight: 700, color: P.forest }}>
                     {trip.campgroundName || trip.campground || "Untitled Trip"}
                   </div>
+                  <div style={{ fontSize: 12, color: P.muted, marginTop: 3 }}>
+                  Shared by {trip.userName || trip.name || "Camper"}
+                </div>
                   <div style={{ fontSize: 13, color: P.muted, marginTop: 4 }}>
                     📍 {trip.location || "No location"}
                   </div>
