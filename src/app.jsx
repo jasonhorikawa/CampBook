@@ -7402,6 +7402,7 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
           P={P}
           Avatar={Avatar}
           SLabel={SLabel}
+          Check={Check}
         />
       )}
       {!sub && tab === "friends" && (
