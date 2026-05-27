@@ -6967,6 +6967,8 @@ export default function CampBook() {
 
     const trips = await loadTripsFromSupabase();
     const friendships = await loadFriendshipsFromSupabase();
+    const feed = await loadFriendsFeedFromSupabase();
+    setFeedEntries(feed);
 
     setData((d) => ({
       ...d,
