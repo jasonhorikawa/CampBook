@@ -9,7 +9,8 @@ function ProfileView({
   S,
   P,
   Avatar,
-  SLabel
+  SLabel,
+  Check
 }) {
   const st = calcTripStats(entries);
   return (
