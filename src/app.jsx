@@ -128,7 +128,7 @@ async function loadFriendsFeedFromSupabase() {
 
   const { data: friendships, error: friendshipError } = await supabase
     .from("friendships")
-    .select("*")
+    .select("*, profile:profiles(display_name, email)")
     .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
     .eq("status", "friend");
 
@@ -168,7 +168,7 @@ async function loadFriendsFeedFromSupabase() {
         campgroundName: t.campgroundName || t.campground || trip.title || "",
         location: t.location || trip.location || "",
         photos: t.photos || t.images || [],
-        userName: t.userName || "Camper",
+       userName: trip.profile?.display_name || trip.profile?.email || t.userName || "Camper",
         userAvatar: t.userAvatar || "🏕️",
         userColor: t.userColor || "#2F5D50",
         notes: t.notes || "",
