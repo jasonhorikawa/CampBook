@@ -6971,8 +6971,11 @@ export default function CampBook() {
 
     if (user) {
       const trips = await loadTripsFromSupabase();
-      const feed = await loadFriendsFeedFromSupabase();
-      const friendships = await loadFriendshipsFromSupabase();
+const friendships = await loadFriendships();
+
+loadFriendsFeedFromSupabase().then((feed) => {
+  setFeedEntries(feed);
+});
       const profileIds = [
   ...new Set(
     friendships
