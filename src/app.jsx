@@ -97,7 +97,7 @@ async function loadTripsFromSupabase() {
 
  const { data, error } = await supabase
   .from("trips")
-  .select("id, user_id, title, location, created_at, cover_photo")
+  .select("id, user_id, title, location, created_at, cover_photo, trip_data")
   .eq("user_id", user.id)
   .order("created_at", { ascending: false })
   .limit(25);
@@ -117,6 +117,7 @@ return (data || [])
   user_id: trip.user_id,
   campgroundName: trip.trip_data?.campgroundName || trip.title || "",
   location: trip.trip_data?.location || trip.location || "",
+  cover: trip.cover_photo || "",
 }));
 
 }
