@@ -7400,6 +7400,7 @@ const { error } = await supabase.from("trips").upsert([tripRow]);
           calcTripStats={calcTripStats}
           S={S}
           P={P}
+          Avatar={Avatar}
         />
       )}
       {!sub && tab === "friends" && (
