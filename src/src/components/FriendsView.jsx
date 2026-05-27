@@ -83,7 +83,16 @@ export default function FriendsView({
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const pending = friends.filter((f) => f.status === "pending");
-  const active = friends.filter((f) => f.status === "friend");
+  const active = friends
+  .filter((f) => f.status === "friend")
+  .filter(
+    (f, i, arr) =>
+      arr.findIndex(
+        (x) =>
+          [x.requester_id, x.receiver_id].sort().join("-") ===
+          [f.requester_id, f.receiver_id].sort().join("-")
+      ) === i
+  );
 
   const openTrip = (trip) => {
     setSelectedTrip(trip);
