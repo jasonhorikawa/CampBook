@@ -125,11 +125,12 @@ async function loadFriendsFeedFromSupabase() {
 
   if (!user) return [];
 
-  const { data: friendships, error: friendshipError } = await supabase
-    .from("friendships")
-    .select("*")
-    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
-    .eq("status", "friend");
+  const { data, error } = await supabase
+  .from("trips")
+  .select("id, user_id, title, location, created_at, cover_photo, trip_data")
+  .in("user_id", friendIds)
+  .order("created_at", { ascending: false })
+  .limit(25);
 
   if (friendshipError) {
     alert("Friendship feed load failed: " + friendshipError.message);
