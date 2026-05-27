@@ -19,7 +19,13 @@ function getText(value) {
 }
 
 function DetailSection({ title, children }) {
-  if (!children) return null;
+  if (
+  !children ||
+  children === "" ||
+  (Array.isArray(children) && children.length === 0)
+) {
+  return null;
+}
 
   return (
     <div
