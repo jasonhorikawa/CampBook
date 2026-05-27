@@ -80,9 +80,7 @@ if (trips.length > 0) {
     STORAGE_KEY,
     JSON.stringify({
       ...loadData(),
-      entries: trips
-        .map((t) => ({ ...t.trip_data, supabase_id: t.id }))
-        .filter(Boolean),
+      entries: trips,
     })
   );
 }
