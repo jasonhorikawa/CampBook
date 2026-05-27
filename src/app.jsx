@@ -97,7 +97,7 @@ async function loadTripsFromSupabase() {
 
  const { data, error } = await supabase
   .from("trips")
-  .select("id, user_id, title, location, created_at")
+  .select("id, user_id, title, location, created_at, cover_photo")
   .eq("user_id", user.id)
   .order("created_at", { ascending: false })
   .limit(25);
