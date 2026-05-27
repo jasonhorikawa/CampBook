@@ -99,8 +99,9 @@ async function loadTripsFromSupabase() {
   .from("trips")
   .select("*")
   .eq("user_id", user.id)
-  .order("created_at", { ascending: false });
-
+  .order("created_at", { ascending: false })
+  .limit(25);
+  
   if (error) {
     alert("Load failed: " + error.message);
     return [];
