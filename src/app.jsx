@@ -95,9 +95,9 @@ async function loadTripsFromSupabase() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
+ const { data, error } = await supabase
   .from("trips")
-  .select("*")
+  .select("id, user_id, title, location, created_at")
   .eq("user_id", user.id)
   .order("created_at", { ascending: false })
   .limit(25);
