@@ -95,31 +95,29 @@ async function loadTripsFromSupabase() {
     data: { user },
   } = await supabase.auth.getUser();
 
- const { data, error } = await supabase
-  .from("trips")
-  .select("id, user_id, title, location, created_at, cover_photo, trip_data")
-  .eq("user_id", user.id)
-  .order("created_at", { ascending: false })
-  .limit(25);
-  
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("trips")
+    .select("id, user_id, title, location, created_at, cover_photo, trip_data")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
   if (error) {
+    console.error("Load trips error:", error);
     alert("Load failed: " + error.message);
     return [];
   }
 
-return (data || [])
-  .filter((trip) => {
-  return trip.user_id === user.id;
-})
-  .map((trip) => ({
-  ...(trip.trip_data || {}),
-  supabase_id: trip.id,
-  user_id: trip.user_id,
-  campgroundName: trip.trip_data?.campgroundName || trip.title || "",
-  location: trip.trip_data?.location || trip.location || "",
-  cover: trip.cover_photo || "",
-}));
-
+  return (data || []).map((trip) => ({
+    ...(trip.trip_data || {}),
+    supabase_id: trip.id,
+    user_id: trip.user_id,
+    campgroundName: trip.trip_data?.campgroundName || trip.title || "",
+    location: trip.trip_data?.location || trip.location || "",
+    cover: trip.cover_photo || trip.trip_data?.cover || "",
+  }));
 }
 
 async function loadFriendsFeedFromSupabase() {
