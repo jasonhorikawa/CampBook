@@ -6966,7 +6966,41 @@ export default function CampBook() {
     if (!user) return;
 
     const trips = await loadTripsFromSupabase();
-    const friendships = await loadFriendshipsFromSupabase();
+    let friendships = await loadFriendshipsFromSupabase();
+
+const profileIds = [
+  ...new Set(
+    friendships
+      .flatMap((f) => [f.requester_id, f.receiver_id])
+      .filter((id) => id && id !== user.id)
+  ),
+];
+
+let profilesById = {};
+
+if (profileIds.length > 0) {
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, email, display_name")
+    .in("id", profileIds);
+
+  profilesById = Object.fromEntries(
+    (profiles || []).map((p) => [p.id, p])
+  );
+}
+
+friendships = friendships.map((f) => {
+  const otherUserId =
+    f.requester_id === user.id ? f.receiver_id : f.requester_id;
+
+  const profile = profilesById[otherUserId];
+
+  return {
+    ...f,
+    name: profile?.display_name || profile?.email || "Camper",
+    email: profile?.email || "",
+  };
+});
     const feed = await loadFriendsFeedFromSupabase();
     setFeedEntries(feed);
 
