@@ -98,6 +98,7 @@ async function loadTripsFromSupabase() {
   const { data, error } = await supabase
   .from("trips")
   .select("*")
+  .eq("user_id", user.id)
   .order("created_at", { ascending: false });
 
   if (error) {
