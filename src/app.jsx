@@ -97,7 +97,7 @@ async function loadTripsFromSupabase() {
 
   const { data, error } = await supabase
     .from("trips")
-    .select("id, user_id, title, location, created_at, cover_photo, trip_data")
+    .select("id, user_id, title, location, created_at, cover_photo")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(25);
@@ -109,13 +109,15 @@ async function loadTripsFromSupabase() {
   }
 
   return (data || []).map((trip) => ({
-    ...(trip.trip_data || {}),
-    supabase_id: trip.id,
-    user_id: trip.user_id,
-    campgroundName: trip.trip_data?.campgroundName || trip.title || "",
-    location: trip.trip_data?.location || trip.location || "",
-    cover: trip.cover_photo || trip.trip_data?.cover || "",
-  }));
+  supabase_id: trip.id,
+  id: trip.id,
+  user_id: trip.user_id,
+  campgroundName: trip.title || "",
+  location: trip.location || "",
+  cover: trip.cover_photo || "",
+  photos: trip.cover_photo ? [{ url: trip.cover_photo }] : [],
+  isLightweight: true,
+}));
 }
 
 async function loadFriendsFeedFromSupabase() {
