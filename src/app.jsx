@@ -181,7 +181,11 @@ const profilesById = Object.fromEntries(
           t.campgroundName || t.campground || trip.title || "",
         location: t.location || trip.location || "",
         photos: t.photos || t.images || [],
-        userName: t.userName || "Camper",
+        userName:
+  t.userName ||
+  profile?.display_name ||
+  profile?.email ||
+  "Camper",
         userAvatar: t.userAvatar || "🏕️",
         userColor: t.userColor || "#2F5D50",
         notes: t.notes || "",
