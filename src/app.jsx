@@ -7084,8 +7084,6 @@ useEffect(() => {
   loadFeed();
 }, []);
 
-const setEntries = (fn) =>
-
   const setEntries = (fn) =>
     setData((d) => ({
       ...d,
