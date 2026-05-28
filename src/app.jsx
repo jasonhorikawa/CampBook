@@ -163,11 +163,11 @@ const profilesById = Object.fromEntries(
 );
 
   const { data, error } = await supabase
-    .from("trips")
-    .select("id, user_id, title, location, created_at, cover_photo, trip_data")
-    .in("user_id", friendIds)
-    .order("created_at", { ascending: false })
-    .limit(25);
+  .from("trips")
+  .select("id, user_id, title, location, created_at, cover_photo, trip_data")
+  .in("user_id", friendIds)
+  .order("created_at", { ascending: false })
+  .limit(25);
 
   if (error) {
     alert("Feed load failed: " + error.message);
