@@ -143,6 +143,15 @@ async function loadFriendsFeedFromSupabase() {
   );
 
   if (friendIds.length === 0) return [];
+  
+  const { data: profiles } = await supabase
+  .from("profiles")
+  .select("id, email, display_name")
+  .in("id", friendIds);
+
+const profilesById = Object.fromEntries(
+  (profiles || []).map((p) => [p.id, p])
+);
 
   const { data, error } = await supabase
     .from("trips")
@@ -160,6 +169,7 @@ async function loadFriendsFeedFromSupabase() {
     .filter((trip) => trip.trip_data?.privacy !== "private")
     .map((trip) => {
       const t = trip.trip_data || {};
+      const profile = profilesById[trip.user_id];
 
       return {
         ...t,
