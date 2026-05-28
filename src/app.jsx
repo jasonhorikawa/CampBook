@@ -311,7 +311,7 @@ async function loadFriendshipsFromSupabase() {
   return data || [];
 }
 
-function compressImage(file, maxWidth = 1200, quality = 0.75) {
+function compressImage(file, maxWidth = 900, quality = 0.6) {
   return new Promise((resolve) => {
     const img = new Image();
     const reader = new FileReader();
@@ -322,21 +322,30 @@ function compressImage(file, maxWidth = 1200, quality = 0.75) {
 
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      const scale = Math.min(1, maxWidth / img.width);
 
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height *= maxWidth / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
 
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, width, height);
 
       canvas.toBlob(
         (blob) => {
-          resolve(
-            new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
-              type: "image/jpeg",
-            })
+          const compressedFile = new File(
+            [blob],
+            file.name,
+            { type: "image/jpeg" }
           );
+
+          resolve(compressedFile);
         },
         "image/jpeg",
         quality
@@ -347,24 +356,34 @@ function compressImage(file, maxWidth = 1200, quality = 0.75) {
   });
 }
 async function uploadTripPhoto(file) {
-  file = await compressImage(file);
+  const previewFile = await compressImage(file, 900, 0.6);
+  const fullFile = await compressImage(file, 1600, 0.82);
   const fileExt = file.name.split(".").pop();
   const fileName = `${Date.now()}.${fileExt}`;
 
-  const { error } = await supabase.storage
-    .from("trip-photos")
-    .upload(fileName, file);
+  const previewPath = `preview-${Date.now()}-${file.name}`;
+const fullPath = `full-${Date.now()}-${file.name}`;
 
-  if (error) {
-    alert("Upload failed: " + error.message);
-    return null;
-  }
+await supabase.storage
+  .from("trip-photos")
+  .upload(previewPath, previewFile);
 
-  const { data } = supabase.storage
-    .from("trip-photos")
-    .getPublicUrl(fileName);
+await supabase.storage
+  .from("trip-photos")
+  .upload(fullPath, fullFile);
 
-  return data.publicUrl;
+const previewUrl = supabase.storage
+  .from("trip-photos")
+  .getPublicUrl(previewPath).data.publicUrl;
+
+const fullUrl = supabase.storage
+  .from("trip-photos")
+  .getPublicUrl(fullPath).data.publicUrl;
+
+return {
+  previewUrl,
+  url: fullUrl,
+};
 }
 async function saveTripToSupabase() {
   const title = prompt("Campground name?");
