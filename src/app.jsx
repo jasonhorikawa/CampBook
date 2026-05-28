@@ -108,7 +108,7 @@ async function loadTripsFromSupabase() {
     return [];
   }
 
-  return (data || []).map((trip) => ({
+ return (data || []).map((trip) => ({
   supabase_id: trip.id,
   id: trip.id,
   user_id: trip.user_id,
