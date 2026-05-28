@@ -7073,6 +7073,19 @@ friendships = friendships.map((f) => {
   return () => subscription.unsubscribe();
 }, []);
 
+useEffect(() => {
+  if (tab !== "friends") return;
+
+  async function loadFeed() {
+    const feed = await loadFriendsFeedFromSupabase();
+    setFeedEntries(feed);
+  }
+
+  loadFeed();
+}, []);
+
+const setEntries = (fn) =>
+
   const setEntries = (fn) =>
     setData((d) => ({
       ...d,
