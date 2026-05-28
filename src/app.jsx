@@ -97,7 +97,7 @@ async function loadTripsFromSupabase() {
 
   const { data, error } = await supabase
     .from("trips")
-    .select("id, user_id, title, location, created_at, cover_photo")
+    .select("id, user_id, title, location, created_at, cover_photo, trip_data")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(25);
@@ -108,16 +108,23 @@ async function loadTripsFromSupabase() {
     return [];
   }
 
- return (data || []).map((trip) => ({
-  supabase_id: trip.id,
-  id: trip.id,
-  user_id: trip.user_id,
-  campgroundName: trip.title || "",
-  location: trip.location || "",
-  cover: trip.cover_photo || "",
-  photos: trip.cover_photo ? [{ url: trip.cover_photo }] : [],
-  isLightweight: true,
-}));
+ return (data || []).map((trip) => {
+  const t = trip.trip_data || {};
+  const allPhotos = t.photos || t.images || [];
+  const previewPhotos = allPhotos.slice(0, 3);
+
+  return {
+    ...t,
+    supabase_id: trip.id,
+    id: trip.id,
+    user_id: trip.user_id,
+    campgroundName: t.campgroundName || t.campground || trip.title || "",
+    location: t.location || trip.location || "",
+    photos: previewPhotos,
+    cover: trip.cover_photo || previewPhotos[0]?.url || previewPhotos[0] || "",
+    photoCount: allPhotos.length,
+  };
+});
 }
 
 async function loadFriendsFeedFromSupabase() {
@@ -168,33 +175,36 @@ const profilesById = Object.fromEntries(
   }
 
   return (data || [])
-    .filter((trip) => trip.trip_data?.privacy !== "private")
-    .map((trip) => {
-      const t = trip.trip_data || {};
-      const profile = profilesById[trip.user_id];
+  .filter((trip) => trip.trip_data?.privacy !== "private")
+  .map((trip) => {
+    const t = trip.trip_data || {};
+    const profile = profilesById?.[trip.user_id];
+    const allPhotos = t.photos || t.images || [];
+    const previewPhotos = allPhotos.slice(0, 3);
 
-      return {
-        ...t,
-        supabase_id: trip.id,
-        id: trip.id,
-        user_id: trip.user_id,
-        campground: t.campground || t.campgroundName || trip.title || "",
-        campgroundName:
-          t.campgroundName || t.campground || trip.title || "",
-        location: t.location || trip.location || "",
-        photos: t.photos || t.images || [],
-        userName:
-  t.userName ||
-  profile?.display_name ||
-  profile?.email ||
-  "Camper",
-        userAvatar: t.userAvatar || "🏕️",
-        userColor: t.userColor || "#2F5D50",
-        notes: t.notes || "",
-        rating: t.rating || 0,
-        timeAgo: "Shared trip",
-      };
-    });
+    return {
+      ...t,
+      supabase_id: trip.id,
+      id: trip.id,
+      user_id: trip.user_id,
+      campground: t.campground || t.campgroundName || trip.title || "",
+      campgroundName: t.campgroundName || t.campground || trip.title || "",
+      location: t.location || trip.location || "",
+      photos: previewPhotos,
+      cover: trip.cover_photo || previewPhotos[0]?.url || previewPhotos[0] || "",
+      photoCount: allPhotos.length,
+      userName:
+        t.userName ||
+        profile?.display_name ||
+        profile?.email ||
+        "Camper",
+      userAvatar: t.userAvatar || "🏕️",
+      userColor: t.userColor || "#2F5D50",
+      notes: t.notes || "",
+      rating: t.rating || 0,
+      timeAgo: "Shared trip",
+    };
+  });
 }
 
 
