@@ -114,16 +114,17 @@ async function loadTripsFromSupabase() {
   const previewPhotos = allPhotos.slice(0, 3);
 
   return {
-    ...t,
-    supabase_id: trip.id,
-    id: trip.id,
-    user_id: trip.user_id,
-    campgroundName: t.campgroundName || t.campground || trip.title || "",
-    location: t.location || trip.location || "",
-    photos: previewPhotos,
-    cover: trip.cover_photo || previewPhotos[0]?.url || previewPhotos[0] || "",
-    photoCount: allPhotos.length,
-  };
+  ...t,
+  supabase_id: trip.id,
+  id: trip.id,
+  user_id: trip.user_id,
+  campgroundName: t.campgroundName || t.campground || trip.title || "",
+  location: t.location || trip.location || "",
+  previewPhotos: previewPhotos,
+  photos: allPhotos,
+  cover: trip.cover_photo || previewPhotos[0]?.url || previewPhotos[0] || "",
+  photoCount: allPhotos.length,
+};
 });
 }
 
@@ -190,7 +191,8 @@ const profilesById = Object.fromEntries(
       campground: t.campground || t.campgroundName || trip.title || "",
       campgroundName: t.campgroundName || t.campground || trip.title || "",
       location: t.location || trip.location || "",
-      photos: previewPhotos,
+      previewPhotos: previewPhotos,
+      photos: allPhotos,
       cover: trip.cover_photo || previewPhotos[0]?.url || previewPhotos[0] || "",
       photoCount: allPhotos.length,
       userName:
