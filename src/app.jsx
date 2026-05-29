@@ -128,6 +128,31 @@ async function loadTripsFromSupabase() {
 });
 }
 
+async function loadFullTripFromSupabase(tripId) {
+  const { data, error } = await supabase
+    .from("trips")
+    .select("id, user_id, title, location, created_at, cover_photo, trip_data")
+    .eq("id", tripId)
+    .single();
+
+  if (error) {
+    alert("Trip load failed: " + error.message);
+    return null;
+  }
+
+  const t = data.trip_data || {};
+
+  return {
+    ...t,
+    supabase_id: data.id,
+    id: data.id,
+    user_id: data.user_id,
+    campgroundName: t.campgroundName || t.campground || data.title || "",
+    location: t.location || data.location || "",
+    cover: data.cover_photo || t.cover || "",
+  };
+}
+
 async function loadFriendsFeedFromSupabase() {
   const {
     data: { user },
