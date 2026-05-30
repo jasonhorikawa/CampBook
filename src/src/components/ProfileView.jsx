@@ -139,7 +139,7 @@ function ProfileView({
                   {e.campgroundName}
                 </div>
                 <div style={{ fontSize: 12, color: P.muted }}>
-                  {e.startDate ? niceDate(e.startDate) : "No date"}
+                  {e.startDate || "No date"}
                   {e.who?.length ? ` · ${e.who.length} crew tagged` : ""}
                 </div>
               </div>
