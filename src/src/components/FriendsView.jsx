@@ -1,5 +1,37 @@
 import React, { useState } from "react";
 
+function previewSrc(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return photo;
+
+  const directPreview = photo.previewUrl;
+  const directUrl = photo.url;
+
+  if (typeof directPreview === "string") return directPreview;
+  if (directUrl && typeof directUrl === "object") {
+    return directUrl.previewUrl || directUrl.url || "";
+  }
+  if (typeof directUrl === "string") return directUrl;
+
+  return "";
+}
+
+function fullSrc(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return photo;
+
+  const directUrl = photo.url;
+  const directPreview = photo.previewUrl;
+
+  if (typeof directUrl === "string") return directUrl;
+  if (directUrl && typeof directUrl === "object") {
+    return directUrl.url || directUrl.previewUrl || "";
+  }
+  if (typeof directPreview === "string") return directPreview;
+
+  return "";
+}
+
 function getText(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -205,10 +237,10 @@ export default function FriendsView({
               >
                 {trip.photos?.length > 0 && (
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 3 }}>
-                    <img src={trip.photos[0].url || trip.photos[0]} alt="" style={{ width: "100%", height: 190, objectFit: "cover" }} />
+                    <img src={previewSrc(trip.photos[0])} loading="lazy" alt="" style={{ width: "100%", height: 190, objectFit: "cover" }} />
                     <div style={{ display: "grid", gap: 3 }}>
                       {trip.photos.slice(1, 3).map((photo, i) => (
-                        <img key={i} src={photo.url || photo} alt="" style={{ width: "100%", height: 93, objectFit: "cover" }} />
+                        <img key={i} src={previewSrc(photo)} loading="lazy" alt="" style={{ width: "100%", height: 93, objectFit: "cover" }} />
                       ))}
                     </div>
                   </div>
@@ -306,7 +338,7 @@ export default function FriendsView({
                   {selectedPhotos.map((photo, i) => (
                     <img
                       key={i}
-                      src={photo.url || photo}
+                      src={fullSrc(photo)}
                       alt=""
                       style={{
                         width: "100%",
