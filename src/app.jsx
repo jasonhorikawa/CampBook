@@ -36,6 +36,38 @@ const MONTHS = [
 ];
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const STORAGE_KEY = "campbook_v10";
+
+function previewSrc(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return photo;
+
+  const directPreview = photo.previewUrl;
+  const directUrl = photo.url;
+
+  if (typeof directPreview === "string") return directPreview;
+  if (directUrl && typeof directUrl === "object") {
+    return directUrl.previewUrl || directUrl.url || "";
+  }
+  if (typeof directUrl === "string") return directUrl;
+
+  return "";
+}
+
+function fullSrc(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return photo;
+
+  const directUrl = photo.url;
+  const directPreview = photo.previewUrl;
+
+  if (typeof directUrl === "string") return directUrl;
+  if (directUrl && typeof directUrl === "object") {
+    return directUrl.url || directUrl.previewUrl || "";
+  }
+  if (typeof directPreview === "string") return directPreview;
+
+  return "";
+}
 // =======================
 // Auth + Supabase Helpers
 // =======================
@@ -122,7 +154,7 @@ async function loadTripsFromSupabase() {
   location: t.location || trip.location || "",
   previewPhotos: previewPhotos,
   photos: allPhotos,
-  cover: trip.cover_photo || previewPhotos[0]?.url || previewPhotos[0] || "",
+  cover: trip.cover_photo || previewSrc(previewPhotos[0]) || "",
   photoCount: allPhotos.length,
 };
 });
@@ -218,7 +250,7 @@ const profilesById = Object.fromEntries(
       location: t.location || trip.location || "",
       previewPhotos: previewPhotos,
       photos: allPhotos,
-      cover: trip.cover_photo || previewPhotos[0]?.url || previewPhotos[0] || "",
+      cover: trip.cover_photo || previewSrc(previewPhotos[0]) || "",
       photoCount: allPhotos.length,
       userName:
         t.userName ||
@@ -381,34 +413,39 @@ function compressImage(file, maxWidth = 900, quality = 0.6) {
   });
 }
 async function uploadTripPhoto(file) {
-  const previewFile = await compressImage(file, 900, 0.6);
-  const fullFile = await compressImage(file, 1600, 0.82);
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${Date.now()}.${fileExt}`;
+  const optimizedFile = await compressImage(file, 1200, 0.72);
 
-  const previewPath = `preview-${Date.now()}-${file.name}`;
-const fullPath = `full-${Date.now()}-${file.name}`;
+  const safeName = file.name
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9.-]/g, "")
+    .replace(/\.[^.]+$/, "");
 
-await supabase.storage
-  .from("trip-photos")
-  .upload(previewPath, previewFile);
+  const path = `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}-${safeName || "photo"}.jpg`;
 
-await supabase.storage
-  .from("trip-photos")
-  .upload(fullPath, fullFile);
+  const { error } = await supabase.storage
+    .from("trip-photos")
+    .upload(path, optimizedFile, {
+      contentType: "image/jpeg",
+      upsert: false,
+    });
 
-const previewUrl = supabase.storage
-  .from("trip-photos")
-  .getPublicUrl(previewPath).data.publicUrl;
+  if (error) {
+    alert("Photo upload failed: " + error.message);
+    return null;
+  }
 
-const fullUrl = supabase.storage
-  .from("trip-photos")
-  .getPublicUrl(fullPath).data.publicUrl;
+  const publicUrl = supabase.storage
+    .from("trip-photos")
+    .getPublicUrl(path).data.publicUrl;
 
-return {
-  previewUrl,
-  url: fullUrl,
-};
+  return {
+    url: publicUrl,
+    previewUrl: publicUrl,
+    path,
+  };
 }
 async function saveTripToSupabase() {
   const title = prompt("Campground name?");
@@ -1787,7 +1824,7 @@ const PhotoUploader = ({ photos, onChange }) => {
 
   batch.push({
     id: Date.now() + Math.random(),
-    url,
+    ...url,
     name: file.name,
   });
 
@@ -1843,10 +1880,11 @@ const PhotoUploader = ({ photos, onChange }) => {
                 }}
               >
                 <img
-  src={p.url}
+  src={previewSrc(p)}
+  loading="lazy"
   alt=""
   onClick={() => {
-  setViewerPhotos(photos.map((x) => x.url));
+  setViewerPhotos(photos.map((x) => fullSrc(x)));
   setViewerIndex(photos.findIndex((x) => x.id === p.id));
 }}
   style={{
@@ -2528,7 +2566,8 @@ function FishingLogTab({ form, set }) {
               >
                 {f.photo && (
                   <img
-                    src={f.photo.url}
+                    src={previewSrc(f.photo)}
+                    loading="lazy"
                     alt=""
                     style={{
                       width: 54,
@@ -4169,7 +4208,8 @@ entries.forEach((e) => {
             >
               {entry.photos?.[0]?.url ? (
   <img
-    src={entry.photos[0].url}
+    src={previewSrc(entry.photos[0])}
+    loading="lazy"
     alt=""
     style={{
       width: 54,
@@ -4386,7 +4426,7 @@ entries.forEach((e) => {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setViewerPhotos(entry.photos.map((x) => x.url));
+                        setViewerPhotos(entry.photos.map((x) => fullSrc(x)));
                         setViewerIndex(entry.photos.findIndex((x) => x.id === p.id));
                       }}
                       style={{
@@ -4397,7 +4437,8 @@ entries.forEach((e) => {
                       }}
                     >
                       <img
-                        src={p.url}
+                        src={previewSrc(p)}
+                        loading="lazy"
                         alt=""
                         style={{
                           width: "100%",
@@ -6314,7 +6355,8 @@ const FeedView = ({ friends }) => {
               {trip.photos.map((p, i) => (
   <img
     key={i}
-    src={p.url || p}
+    src={previewSrc(p)}
+    loading="lazy"
     alt=""
     style={{
       flex: 1,
@@ -7293,7 +7335,7 @@ useEffect(() => {
   }
 
   const existingId = editing?.supabase_id || form.supabase_id;
-  const coverPhoto = form.photos?.[0]?.url || "";
+  const coverPhoto = previewSrc(form.photos?.[0]) || "";
 
   const tripRow = {
     title: form.campgroundName || "Untitled Trip",
