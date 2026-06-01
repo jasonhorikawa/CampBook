@@ -3,32 +3,22 @@ import React, { useState } from "react";
 function previewSrc(photo) {
   if (!photo) return "";
   if (typeof photo === "string") return photo;
-
-  const directPreview = photo.previewUrl;
-  const directUrl = photo.url;
-
-  if (typeof directPreview === "string") return directPreview;
-  if (directUrl && typeof directUrl === "object") {
-    return directUrl.previewUrl || directUrl.url || "";
+  if (typeof photo.previewUrl === "string") return photo.previewUrl;
+  if (typeof photo.url === "string") return photo.url;
+  if (photo.url && typeof photo.url === "object") {
+    return photo.url.previewUrl || photo.url.url || "";
   }
-  if (typeof directUrl === "string") return directUrl;
-
   return "";
 }
 
 function fullSrc(photo) {
   if (!photo) return "";
   if (typeof photo === "string") return photo;
-
-  const directUrl = photo.url;
-  const directPreview = photo.previewUrl;
-
-  if (typeof directUrl === "string") return directUrl;
-  if (directUrl && typeof directUrl === "object") {
-    return directUrl.url || directUrl.previewUrl || "";
+  if (typeof photo.url === "string") return photo.url;
+  if (typeof photo.previewUrl === "string") return photo.previewUrl;
+  if (photo.url && typeof photo.url === "object") {
+    return photo.url.url || photo.url.previewUrl || "";
   }
-  if (typeof directPreview === "string") return directPreview;
-
   return "";
 }
 
