@@ -40,32 +40,22 @@ const STORAGE_KEY = "campbook_v10";
 function previewSrc(photo) {
   if (!photo) return "";
   if (typeof photo === "string") return photo;
-
-  const directPreview = photo.previewUrl;
-  const directUrl = photo.url;
-
-  if (typeof directPreview === "string") return directPreview;
-  if (directUrl && typeof directUrl === "object") {
-    return directUrl.previewUrl || directUrl.url || "";
+  if (typeof photo.previewUrl === "string") return photo.previewUrl;
+  if (typeof photo.url === "string") return photo.url;
+  if (photo.url && typeof photo.url === "object") {
+    return photo.url.previewUrl || photo.url.url || "";
   }
-  if (typeof directUrl === "string") return directUrl;
-
   return "";
 }
 
 function fullSrc(photo) {
   if (!photo) return "";
   if (typeof photo === "string") return photo;
-
-  const directUrl = photo.url;
-  const directPreview = photo.previewUrl;
-
-  if (typeof directUrl === "string") return directUrl;
-  if (directUrl && typeof directUrl === "object") {
-    return directUrl.url || directUrl.previewUrl || "";
+  if (typeof photo.url === "string") return photo.url;
+  if (typeof photo.previewUrl === "string") return photo.previewUrl;
+  if (photo.url && typeof photo.url === "object") {
+    return photo.url.url || photo.url.previewUrl || "";
   }
-  if (typeof directPreview === "string") return directPreview;
-
   return "";
 }
 // =======================
@@ -1806,37 +1796,41 @@ function DatePicker({ startDate, endDate, onChange }) {
 }
 
 // ── Photo Uploader ────────────────────────────────────────
-const PhotoUploader = ({ photos, onChange }) => {
+const PhotoUploader = ({ photos = [], onChange, onOpenPhotoViewer }) => {
   const [uploading, setUploading] = useState(false);
   const ref = useRef();
-  const handleFiles = (e) => {
-    const files = Array.from(e.target.files);
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
     setUploading(true);
-    onChange((prev) => [...prev]);
-    
-    let done = 0;
-    const batch = [];
-    files.forEach(async (file) => {
-  const url = await uploadTripPhoto(file);
 
-  if (!url) return;
+    try {
+      const uploadedPhotos = await Promise.all(
+        files.map(async (file) => {
+          const uploaded = await uploadTripPhoto(file);
+          if (!uploaded) return null;
 
-  batch.push({
-    id: Date.now() + Math.random(),
-    ...url,
-    name: file.name,
-  });
+          return {
+            id: Date.now() + Math.random(),
+            ...uploaded,
+            name: file.name,
+          };
+        })
+      );
 
-  done++;
+      const cleanPhotos = uploadedPhotos.filter(Boolean);
 
-  if (done === files.length) {
-    onChange((p) => [...p, ...batch]);
-    setUploading(false);
-  }
-});
-    e.target.value = "";
+      if (cleanPhotos.length > 0) {
+        onChange((prev) => [...(prev || []), ...cleanPhotos]);
+      }
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
   };
+
   return (
     <div>
       <input
@@ -1847,18 +1841,20 @@ const PhotoUploader = ({ photos, onChange }) => {
         style={{ display: "none" }}
         onChange={handleFiles}
       />
+
       {uploading && (
-  <div
-    style={{
-      textAlign: "center",
-      padding: 10,
-      color: P.muted,
-      fontSize: 12,
-    }}
-  >
-    Uploading photos...
-  </div>
-)}
+        <div
+          style={{
+            textAlign: "center",
+            padding: 10,
+            color: P.muted,
+            fontSize: 12,
+          }}
+        >
+          Uploading photos...
+        </div>
+      )}
+
       {photos.length > 0 && (
         <>
           <div
@@ -1871,32 +1867,36 @@ const PhotoUploader = ({ photos, onChange }) => {
           >
             {photos.map((p) => (
               <div
-                key={p.id}
+                key={p.id || previewSrc(p)}
                 style={{
                   position: "relative",
                   aspectRatio: "1",
                   borderRadius: 8,
                   overflow: "hidden",
+                  background: P.cream,
                 }}
               >
                 <img
-  src={previewSrc(p)}
-  loading="lazy"
-  alt=""
-  onClick={() => {
-  setViewerPhotos(photos.map((x) => fullSrc(x)));
-  setViewerIndex(photos.findIndex((x) => x.id === p.id));
-}}
-  style={{
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    cursor: "pointer",
-  }}
-/>
+                  src={previewSrc(p)}
+                  loading="lazy"
+                  alt=""
+                  onClick={() => {
+                    const photoUrls = photos.map((x) => fullSrc(x)).filter(Boolean);
+                    if (onOpenPhotoViewer && photoUrls.length > 0) {
+                      onOpenPhotoViewer(photoUrls, photos.findIndex((x) => x.id === p.id));
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    cursor: onOpenPhotoViewer ? "pointer" : "default",
+                    display: "block",
+                  }}
+                />
                 <button
                   onClick={() =>
-                    onChange((prev) => prev.filter((x) => x.id !== p.id))
+                    onChange((prev) => (prev || []).filter((x) => x.id !== p.id))
                   }
                   style={{
                     position: "absolute",
@@ -1932,9 +1932,7 @@ const PhotoUploader = ({ photos, onChange }) => {
               }}
             >
               <span style={{ fontSize: 22 }}>+</span>
-              <span
-                style={{ fontSize: 10, fontFamily: "'Lora',Georgia,serif" }}
-              >
+              <span style={{ fontSize: 10, fontFamily: "'Lora',Georgia,serif" }}>
                 More
               </span>
             </button>
@@ -1951,6 +1949,7 @@ const PhotoUploader = ({ photos, onChange }) => {
           </div>
         </>
       )}
+
       {photos.length === 0 && (
         <button
           onClick={() => ref.current.click()}
@@ -2566,8 +2565,7 @@ function FishingLogTab({ form, set }) {
               >
                 {f.photo && (
                   <img
-                    src={previewSrc(f.photo)}
-                    loading="lazy"
+                    src={f.photo.url}
                     alt=""
                     style={{
                       width: 54,
@@ -4208,8 +4206,7 @@ entries.forEach((e) => {
             >
               {entry.photos?.[0]?.url ? (
   <img
-    src={previewSrc(entry.photos[0])}
-    loading="lazy"
+    src={entry.photos[0].url}
     alt=""
     style={{
       width: 54,
@@ -4426,7 +4423,7 @@ entries.forEach((e) => {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setViewerPhotos(entry.photos.map((x) => fullSrc(x)));
+                        setViewerPhotos(entry.photos.map((x) => fullSrc(x)).filter(Boolean));
                         setViewerIndex(entry.photos.findIndex((x) => x.id === p.id));
                       }}
                       style={{
@@ -6355,8 +6352,7 @@ const FeedView = ({ friends }) => {
               {trip.photos.map((p, i) => (
   <img
     key={i}
-    src={previewSrc(p)}
-    loading="lazy"
+    src={p.url || p}
     alt=""
     style={{
       flex: 1,
@@ -7335,7 +7331,7 @@ useEffect(() => {
   }
 
   const existingId = editing?.supabase_id || form.supabase_id;
-  const coverPhoto = previewSrc(form.photos?.[0]) || "";
+  const coverPhoto = form.photos?.[0]?.url || "";
 
   const tripRow = {
     title: form.campgroundName || "Untitled Trip",
