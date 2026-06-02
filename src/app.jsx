@@ -144,7 +144,7 @@ async function loadTripsFromSupabase() {
   location: t.location || trip.location || "",
   previewPhotos: previewPhotos,
   photos: allPhotos,
-  cover: trip.cover_photo || previewSrc(previewPhotos[0]) || "",
+  cover: previewSrc(previewPhotos[0]) || trip.cover_photo || "",
   photoCount: allPhotos.length,
 };
 });
@@ -171,7 +171,12 @@ async function loadFullTripFromSupabase(tripId) {
     user_id: data.user_id,
     campgroundName: t.campgroundName || t.campground || data.title || "",
     location: t.location || data.location || "",
-    cover: data.cover_photo || t.cover || "",
+    cover:
+  previewSrc(t.photos?.[0]) ||
+  previewSrc(t.previewPhotos?.[0]) ||
+  t.cover ||
+  data.cover_photo ||
+  "",
   };
 }
 
