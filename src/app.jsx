@@ -2398,59 +2398,96 @@ function fishMatches(q) {
 // ── Fishing Log Tab ───────────────────────────────────────
 function FishingLogTab({ form, set }) {
   const log = form.fishingLog || [];
-  const [fish, setFish] = useState({
+  const emptyCatch = {
     species: "",
     count: "",
     size: "",
     bait: "",
     time: "",
     spot: "",
+    spotName: "",
     water: "",
     notes: "",
     rating: 0,
     photo: null,
-  });
+  };
+  const [fish, setFish] = useState(emptyCatch);
   const [speciesQ, setSpeciesQ] = useState("");
   const [showGuide, setShowGuide] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const photoRef = useRef();
-  const totalFish = log.reduce((s, f) => s + Math.max(0, Number(f.count) || 0), 0);
-  const trophy = log
-    .filter((f) => (Number(f.count) || 0) > 0)
+
+  const countFish = (item) => Math.max(0, Number(item?.count) || 0);
+  const getSpotName = (item) => item.spotName || item.spot || "Unnamed Spot";
+  const totalFish = log.reduce((s, f) => s + countFish(f), 0);
+  const activeCatches = log.filter((f) => countFish(f) > 0);
+  const uniqueSpots = Array.from(new Set(log.map(getSpotName).filter(Boolean)));
+  const trophy = activeCatches
     .slice()
     .sort((a, b) => (parseFloat(b.size) || 0) - (parseFloat(a.size) || 0))[0];
   const favoriteBait = (() => {
     const counts = {};
     log.forEach((f) => {
-      if (f.bait) counts[f.bait] = (counts[f.bait] || 0) + Math.max(0, Number(f.count) || 0);
+      const count = countFish(f);
+      if (f.bait && count > 0) counts[f.bait] = (counts[f.bait] || 0) + count;
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
   })();
-  const addFish = () => {
-    if (!fish.species.trim()) return;
-    set("fishingLog", [...log, { ...fish, id: "fish" + Date.now() }]);
-    setFish({
-      species: "",
-      count: "",
-      size: "",
-      bait: "",
-      time: "",
-      spot: "",
-      water: "",
-      notes: "",
-      rating: 0,
-      photo: null,
-    });
+
+  const resetFishForm = () => {
+    setFish(emptyCatch);
     setSpeciesQ("");
+    setEditingId(null);
+    setShowAdvanced(false);
   };
+
+  const saveFish = () => {
+    const hasUsefulInfo =
+      fish.species.trim() ||
+      fish.spotName.trim() ||
+      fish.spot.trim() ||
+      fish.notes.trim();
+
+    if (!hasUsefulInfo) return;
+
+    const savedFish = {
+      ...fish,
+      spotName: fish.spotName || fish.spot || "Fishing Spot",
+      spot: fish.spot || fish.spotName || "Fishing Spot",
+    };
+
+    if (editingId) {
+      set(
+        "fishingLog",
+        log.map((item) =>
+          item.id === editingId ? { ...savedFish, id: editingId } : item
+        )
+      );
+    } else {
+      set("fishingLog", [...log, { ...savedFish, id: "fish" + Date.now() }]);
+    }
+
+    resetFishForm();
+  };
+
+  const editFish = (item) => {
+    setEditingId(item.id);
+    setFish({ ...emptyCatch, ...item, spotName: item.spotName || item.spot || "" });
+    setSpeciesQ(item.species || "");
+  };
+
   const removeFish = (id) =>
     set(
       "fishingLog",
       log.filter((f) => f.id !== id)
     );
+
   const pickSpecies = (sp) => {
     setFish({ ...fish, species: sp.name });
     setSpeciesQ(sp.name);
   };
+
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2463,9 +2500,46 @@ function FishingLogTab({ form, set }) {
     r.readAsDataURL(file);
     e.target.value = "";
   };
+
+  const spotGroups = uniqueSpots.map((spot) => ({
+    spot,
+    catches: log.filter((item) => getSpotName(item) === spot),
+  }));
+
   return (
     <div>
-      <SLabel mt={0}>🎣 Fishing</SLabel>
+      <SLabel mt={0}>🎣 Fishing Spots</SLabel>
+      <div
+        style={{
+          background: `linear-gradient(135deg,${P.water},${P.forest})`,
+          borderRadius: 14,
+          padding: "13px 14px",
+          color: "#F4EFE6",
+          marginBottom: 12,
+          boxShadow: "0 6px 16px #00000018",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            opacity: 0.85,
+            marginBottom: 4,
+            fontWeight: 700,
+          }}
+        >
+          Trip Fishing Log
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 5 }}>
+          Add multiple lakes, creeks, or shore spots.
+        </div>
+        <div style={{ fontSize: 12, lineHeight: 1.6, opacity: 0.88 }}>
+          Perfect for trips where you camp at one campground but fish several
+          nearby waters.
+        </div>
+      </div>
+
       <div
         style={{
           display: "grid",
@@ -2476,7 +2550,7 @@ function FishingLogTab({ form, set }) {
       >
         {[
           { l: "Caught", v: totalFish, e: "🎣" },
-          { l: "Entries", v: log.length, e: "📝" },
+          { l: "Spots", v: uniqueSpots.length, e: "📍" },
           { l: "Top Bait", v: favoriteBait || "—", e: "🎯" },
         ].map((s) => (
           <div
@@ -2494,7 +2568,7 @@ function FishingLogTab({ form, set }) {
             <div
               style={{
                 fontSize: 14,
-                fontWeight: 700,
+                fontWeight: 800,
                 color: P.forest,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -2509,6 +2583,7 @@ function FishingLogTab({ form, set }) {
                 color: P.muted,
                 textTransform: "uppercase",
                 letterSpacing: "0.07em",
+                fontWeight: 700,
               }}
             >
               {s.l}
@@ -2516,6 +2591,7 @@ function FishingLogTab({ form, set }) {
           </div>
         ))}
       </div>
+
       {trophy && (
         <div
           style={{
@@ -2529,120 +2605,169 @@ function FishingLogTab({ form, set }) {
           <div
             style={{
               fontSize: 11,
-              fontWeight: 700,
+              fontWeight: 800,
               color: P.gold,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
               marginBottom: 4,
             }}
           >
-            🏆 Trophy Fish
+            🏆 Best Fish
           </div>
-          <div style={{ fontWeight: 700, color: P.forest, fontSize: 15 }}>
-            {trophy.species}
+          <div style={{ fontWeight: 800, color: P.forest, fontSize: 15 }}>
+            {trophy.species || "Fish"}
             {trophy.size ? ` · ${trophy.size}` : ""}
           </div>
           <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-            {trophy.bait && `Caught on ${trophy.bait}`}
-            {trophy.spot && ` at ${trophy.spot}`}
+            {getSpotName(trophy)}
+            {trophy.bait ? ` · ${trophy.bait}` : ""}
           </div>
         </div>
       )}
-      {log.length > 0 && (
+
+      {spotGroups.length > 0 && (
         <>
-          <SLabel>Saved Catches</SLabel>
-          {log.map((f) => (
+          <SLabel>Saved Fishing Spots</SLabel>
+          {spotGroups.map((group) => (
             <div
-              key={f.id}
+              key={group.spot}
               style={{
                 background: "#EEF5F7",
                 border: `1px solid ${P.water}33`,
-                borderRadius: 11,
+                borderRadius: 13,
                 padding: "10px 12px",
-                marginBottom: 8,
+                marginBottom: 10,
               }}
             >
               <div
                 style={{
                   display: "flex",
+                  alignItems: "center",
                   justifyContent: "space-between",
                   gap: 8,
+                  marginBottom: 8,
                 }}
               >
-                {f.photo && (
-                  <img
-                    src={f.photo.url}
-                    alt=""
-                    style={{
-                      width: 54,
-                      height: 54,
-                      borderRadius: 9,
-                      objectFit: "cover",
-                      border: `1px solid ${P.border}`,
-                    }}
-                  />
-                )}
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{ fontWeight: 700, color: P.forest, fontSize: 15 }}
-                  >
-                    {f.count || 1}× {f.species}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: P.muted,
-                      marginTop: 3,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {f.bait && `🎯 ${f.bait} · `}
-                    {f.time && `🕒 ${f.time} · `}
-                    {f.spot && `📍 ${f.spot}`}
-                  </div>
-                  {f.size && (
-                    <div style={{ fontSize: 12, color: P.water, marginTop: 3 }}>
-                      📏 {f.size}
-                    </div>
-                  )}
-                  {f.water && (
-                    <div style={{ fontSize: 12, color: P.teal, marginTop: 3 }}>
-                      💧 {f.water}
-                    </div>
-                  )}
-                  {f.rating > 0 && <Stars n={f.rating} size={12} />}{" "}
-                  {f.notes && (
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: P.text,
-                        marginTop: 6,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {f.notes}
-                    </div>
-                  )}
+                <div style={{ fontWeight: 800, color: P.forest, fontSize: 15 }}>
+                  📍 {group.spot}
                 </div>
-                <button
-                  onClick={() => removeFish(f.id)}
+                <Tag
+                  label={`${group.catches.reduce((s, f) => s + countFish(f), 0)} fish`}
+                  color={P.water}
+                  small
+                />
+              </div>
+
+              {group.catches.map((f) => (
+                <div
+                  key={f.id}
                   style={{
-                    background: "none",
-                    border: "none",
-                    color: P.red,
-                    fontSize: 18,
-                    cursor: "pointer",
-                    alignSelf: "flex-start",
+                    background: "rgba(255,255,255,0.72)",
+                    border: `1px solid ${P.border}88`,
+                    borderRadius: 11,
+                    padding: 9,
+                    marginTop: 7,
                   }}
                 >
-                  ×
-                </button>
-              </div>
+                  <div style={{ display: "flex", gap: 9 }}>
+                    {f.photo && (
+                      <img
+                        src={f.photo.url}
+                        alt=""
+                        style={{
+                          width: 54,
+                          height: 54,
+                          borderRadius: 9,
+                          objectFit: "cover",
+                          border: `1px solid ${P.border}`,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{ fontWeight: 800, color: P.forest, fontSize: 14 }}
+                      >
+                        {countFish(f)}× {f.species || "No catch logged"}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 5,
+                          marginTop: 5,
+                        }}
+                      >
+                        {f.size && <Tag label={`📏 ${f.size}`} color={P.gold} small />}
+                        {f.bait && <Tag label={`🎯 ${f.bait}`} color={P.water} small />}
+                        {f.time && <Tag label={`🕒 ${f.time}`} color={P.pine} small />}
+                        {f.water && <Tag label={`💧 ${f.water}`} color={P.teal} small />}
+                      </div>
+                      {f.rating > 0 && (
+                        <div style={{ marginTop: 5 }}>
+                          <Stars n={f.rating} size={12} />
+                        </div>
+                      )}
+                      {f.notes && (
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: P.text,
+                            marginTop: 6,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {f.notes}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <button
+                        onClick={() => editFish(f)}
+                        style={{
+                          background: P.pine + "22",
+                          border: `1px solid ${P.pine}44`,
+                          color: P.forest,
+                          borderRadius: 8,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          padding: "4px 7px",
+                          fontWeight: 800,
+                        }}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={() => removeFish(f.id)}
+                        style={{
+                          background: P.red + "16",
+                          border: `1px solid ${P.red}33`,
+                          color: P.red,
+                          borderRadius: 8,
+                          fontSize: 14,
+                          cursor: "pointer",
+                          padding: "3px 7px",
+                          fontWeight: 800,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </>
       )}
-      <SLabel>{log.length ? "Add Another Catch" : "Add First Catch"}</SLabel>
+
+      <SLabel>{editingId ? "Edit Fishing Spot" : log.length ? "Add Another Spot" : "Add First Spot"}</SLabel>
+      <Inp
+        value={fish.spotName}
+        onChange={(e) => setFish({ ...fish, spotName: e.target.value, spot: e.target.value })}
+        placeholder="Fishing spot, e.g. Gull Lake, Rush Creek, South Shore"
+      />
+
       <div style={{ position: "relative" }}>
         <Inp
           value={speciesQ}
@@ -2650,7 +2775,7 @@ function FishingLogTab({ form, set }) {
             setSpeciesQ(e.target.value);
             setFish({ ...fish, species: e.target.value });
           }}
-          placeholder="Search fish species, e.g. trout, bass, catfish"
+          placeholder="Fish species, e.g. rainbow trout"
         />
         {speciesQ && (
           <div
@@ -2671,8 +2796,7 @@ function FishingLogTab({ form, set }) {
                 style={{
                   width: "100%",
                   padding: "9px 12px",
-                  background:
-                    fish.species === sp.name ? P.water + "16" : "#fff",
+                  background: fish.species === sp.name ? P.water + "16" : "#fff",
                   border: "none",
                   borderBottom: `1px solid ${P.border}66`,
                   textAlign: "left",
@@ -2680,7 +2804,7 @@ function FishingLogTab({ form, set }) {
                   fontFamily: "'Lora',Georgia,serif",
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, color: P.forest }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: P.forest }}>
                   🎣 {sp.name}
                 </div>
                 <div style={{ fontSize: 11, color: P.muted, marginTop: 2 }}>
@@ -2691,8 +2815,35 @@ function FishingLogTab({ form, set }) {
           </div>
         )}
       </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <Inp
+          value={fish.count}
+          onChange={(e) => setFish({ ...fish, count: e.target.value })}
+          placeholder="Count"
+          type="number"
+        />
+        <Inp
+          value={fish.size}
+          onChange={(e) => setFish({ ...fish, size: e.target.value })}
+          placeholder="Largest, e.g. 18 in"
+        />
+      </div>
+
+      <Inp
+        value={fish.bait}
+        onChange={(e) => setFish({ ...fish, bait: e.target.value })}
+        placeholder="Bait / lure, e.g. nightcrawler, Panther Martin"
+      />
+
+      <Inp
+        value={fish.time}
+        onChange={(e) => setFish({ ...fish, time: e.target.value })}
+        placeholder="Time fished, e.g. 5:30am - 8:00am"
+      />
+
       <button
-        onClick={() => setShowGuide(!showGuide)}
+        onClick={() => setShowAdvanced(!showAdvanced)}
         style={{
           width: "100%",
           background: P.cream,
@@ -2705,120 +2856,118 @@ function FishingLogTab({ form, set }) {
           cursor: "pointer",
           marginBottom: 10,
           textAlign: "left",
+          fontWeight: 700,
         }}
       >
-        🔎 Fish identifier guide {showGuide ? "▲" : "▼"}
+        More details {showAdvanced ? "▲" : "▼"}
       </button>
-      {showGuide && (
-        <div
-          style={{
-            background: P.card,
-            border: `1px solid ${P.border}`,
-            borderRadius: 12,
-            padding: "10px 12px",
-            marginBottom: 12,
-          }}
-        >
-          {fishMatches(speciesQ || fish.species).map((sp) => (
-            <div
-              key={sp.name}
-              style={{
-                padding: "7px 0",
-                borderBottom: `1px solid ${P.border}88`,
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 700, color: P.forest }}>
-                {sp.name}
-              </div>
-              <div style={{ fontSize: 12, color: P.muted, lineHeight: 1.5 }}>
-                {sp.tips}
-              </div>
-            </div>
-          ))}
-          <div
+
+      {showAdvanced && (
+        <>
+          <button
+            onClick={() => setShowGuide(!showGuide)}
             style={{
-              fontSize: 11,
-              color: P.muted,
-              marginTop: 8,
-              fontStyle: "italic",
+              width: "100%",
+              background: "#fff",
+              border: `1px solid ${P.border}`,
+              borderRadius: 10,
+              padding: "9px 12px",
+              fontFamily: "'Lora',Georgia,serif",
+              fontSize: 13,
+              color: P.earth,
+              cursor: "pointer",
+              marginBottom: 10,
+              textAlign: "left",
             }}
           >
-            Manual guide only. Real AI photo ID would need an image-recognition
-            backend later.
+            🔎 Fish identifier guide {showGuide ? "▲" : "▼"}
+          </button>
+          {showGuide && (
+            <div
+              style={{
+                background: P.card,
+                border: `1px solid ${P.border}`,
+                borderRadius: 12,
+                padding: "10px 12px",
+                marginBottom: 12,
+              }}
+            >
+              {fishMatches(speciesQ || fish.species).map((sp) => (
+                <div
+                  key={sp.name}
+                  style={{
+                    padding: "7px 0",
+                    borderBottom: `1px solid ${P.border}88`,
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 800, color: P.forest }}>
+                    {sp.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: P.muted, lineHeight: 1.5 }}>
+                    {sp.tips}
+                  </div>
+                </div>
+              ))}
+              <div
+                style={{
+                  fontSize: 11,
+                  color: P.muted,
+                  marginTop: 8,
+                  fontStyle: "italic",
+                }}
+              >
+                Manual guide only. Real AI photo ID would need an image-recognition
+                backend later.
+              </div>
+            </div>
+          )}
+
+          <Inp
+            value={fish.water}
+            onChange={(e) => setFish({ ...fish, water: e.target.value })}
+            placeholder="Water, e.g. clear, moving, windy, stained"
+          />
+
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handlePhoto}
+          />
+          <button
+            onClick={() => photoRef.current?.click()}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: `1.5px dashed ${P.border}`,
+              borderRadius: 10,
+              color: P.muted,
+              padding: 10,
+              fontSize: 13,
+              fontFamily: "'Lora',Georgia,serif",
+              cursor: "pointer",
+              marginBottom: 10,
+            }}
+          >
+            {fish.photo ? `📷 ${fish.photo.name}` : "📷 Add catch photo"}
+          </button>
+
+          <SLabel>Fishing Spot Rating</SLabel>
+          <div style={{ marginBottom: 12 }}>
+            <Stars
+              n={fish.rating}
+              onRate={(r) => setFish({ ...fish, rating: r })}
+              size={26}
+            />
           </div>
-        </div>
+        </>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <Inp
-          value={fish.count}
-          onChange={(e) => setFish({ ...fish, count: e.target.value })}
-          placeholder="Count"
-          type="number"
-        />
-        <Inp
-          value={fish.size}
-          onChange={(e) => setFish({ ...fish, size: e.target.value })}
-          placeholder="Size, e.g. 14 in"
-        />
-      </div>
-      <Inp
-        value={fish.bait}
-        onChange={(e) => setFish({ ...fish, bait: e.target.value })}
-        placeholder="Bait / lure, e.g. nightcrawler, Panther Martin"
-      />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <Inp
-          value={fish.time}
-          onChange={(e) => setFish({ ...fish, time: e.target.value })}
-          placeholder="Time, e.g. 7:30am"
-        />
-        <Inp
-          value={fish.water}
-          onChange={(e) => setFish({ ...fish, water: e.target.value })}
-          placeholder="Water, e.g. clear, moving"
-        />
-      </div>
-      <Inp
-        value={fish.spot}
-        onChange={(e) => setFish({ ...fish, spot: e.target.value })}
-        placeholder="Spot / pin, e.g. creek bend by site 42"
-      />
-      <input
-        ref={photoRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handlePhoto}
-      />
-      <button
-        onClick={() => photoRef.current?.click()}
-        style={{
-          width: "100%",
-          background: "transparent",
-          border: `1.5px dashed ${P.border}`,
-          borderRadius: 10,
-          color: P.muted,
-          padding: 10,
-          fontSize: 13,
-          fontFamily: "'Lora',Georgia,serif",
-          cursor: "pointer",
-          marginBottom: 10,
-        }}
-      >
-        {fish.photo ? `📷 ${fish.photo.name}` : "📷 Add catch photo"}
-      </button>
-      <SLabel>Fishing Spot Rating</SLabel>
-      <div style={{ marginBottom: 12 }}>
-        <Stars
-          n={fish.rating}
-          onRate={(r) => setFish({ ...fish, rating: r })}
-          size={26}
-        />
-      </div>
+
       <textarea
         value={fish.notes}
         onChange={(e) => setFish({ ...fish, notes: e.target.value })}
-        placeholder="Water clarity, depth, where fish were holding, what worked..."
+        placeholder="Notes, e.g. where fish were holding, depth, what worked, what did not..."
         style={{
           width: "100%",
           padding: "10px 12px",
@@ -2831,13 +2980,21 @@ function FishingLogTab({ form, set }) {
           outline: "none",
           boxSizing: "border-box",
           resize: "vertical",
-          minHeight: 80,
+          minHeight: 78,
           marginBottom: 12,
         }}
       />
-      <Btn full color={P.water} onClick={addFish}>
-        + Add Catch
-      </Btn>
+
+      <div style={{ display: "grid", gridTemplateColumns: editingId ? "1fr 1fr" : "1fr", gap: 8 }}>
+        {editingId && (
+          <Btn full outline color={P.muted} onClick={resetFishForm}>
+            Cancel Edit
+          </Btn>
+        )}
+        <Btn full color={P.water} onClick={saveFish}>
+          {editingId ? "Save Fishing Spot" : "+ Add Fishing Spot"}
+        </Btn>
+      </div>
     </div>
   );
 }
@@ -4428,7 +4585,7 @@ entries.forEach((e) => {
                   {fishLog.slice(0, 3).map((f) => (
                     <div key={f.id} style={{ fontSize: 13, marginBottom: 3 }}>
                       <span style={{ fontWeight: 700, color: P.forest }}>
-                        {f.count || 1}× {f.species}
+                        {Math.max(0, Number(f.count) || 0)}× {f.species}
                       </span>
                       {f.bait && (
                         <span style={{ color: P.muted }}> — {f.bait}</span>
@@ -6617,17 +6774,18 @@ function FishingView({ entries, onAdd, onEdit, onGo }) {
       weather: e.weather,
     }))
   );
-  const fishCaught = allCatches.reduce((s, f) => s + (+f.count || 1), 0);
+  const fishCaught = allCatches.reduce((s, f) => s + Math.max(0, Number(f.count) || 0), 0);
   const speciesCounts = allCatches.reduce((acc, f) => {
     const name = f.species || "Unknown";
-    acc[name] = (acc[name] || 0) + (+f.count || 1);
+    acc[name] = (acc[name] || 0) + Math.max(0, Number(f.count) || 0);
     return acc;
   }, {});
   const topSpecies = Object.entries(speciesCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   const trophy =
-    allCatches.find((f) => f.trophy) || allCatches.find((f) => f.size);
+    allCatches.find((f) => f.trophy && Math.max(0, Number(f.count) || 0) > 0) ||
+    allCatches.find((f) => f.size && Math.max(0, Number(f.count) || 0) > 0);
   const tripsWithFish = entries.filter((e) => (e.fishingLog || []).length > 0);
   return (
     <div style={S.scroll}>
@@ -6809,14 +6967,14 @@ function FishingView({ entries, onAdd, onEdit, onGo }) {
                   <div
                     style={{ fontWeight: 700, color: P.forest, fontSize: 15 }}
                   >
-                    {f.count || 1}× {f.species}
+                    {Math.max(0, Number(f.count) || 0)}× {f.species}
                   </div>
                   <div style={{ fontSize: 12, color: P.muted, marginTop: 3 }}>
                     {f.campgroundName}
                     {f.date ? ` · ${niceDate(f.date)}` : ""}
                   </div>
                 </div>
-                {f.trophy && <Tag label="🏆 Trophy" color={P.gold} small />}
+                {f.trophy && Math.max(0, Number(f.count) || 0) > 0 && <Tag label="🏆 Trophy" color={P.gold} small />}
               </div>
               <div
                 style={{
@@ -6828,7 +6986,7 @@ function FishingView({ entries, onAdd, onEdit, onGo }) {
               >
                 {f.bait && <Tag label={`🎯 ${f.bait}`} color={P.water} small />}
                 {f.time && <Tag label={`🕒 ${f.time}`} color={P.pine} small />}
-                {f.spot && <Tag label={`📍 ${f.spot}`} color={P.earth} small />}
+                {(f.spotName || f.spot) && <Tag label={`📍 ${f.spotName || f.spot}`} color={P.earth} small />}
                 {f.size && <Tag label={`📏 ${f.size}`} color={P.gold} small />}
               </div>
               {f.notes && (
