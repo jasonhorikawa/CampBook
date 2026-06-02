@@ -40,14 +40,75 @@ function getText(value) {
   return String(value);
 }
 
+function getMapQuery(place = {}) {
+  const parts = [
+    place.spotName,
+    place.spot,
+    place.name,
+    place.title,
+    place.address,
+    place.location,
+    place.campgroundName,
+    place.campground,
+  ].filter(Boolean);
+
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function openAppleMaps(place) {
+  const query = getMapQuery(place);
+  if (!query) return alert("Add a place name or location first.");
+  window.open(`https://maps.apple.com/?q=${encodeURIComponent(query)}`, "_blank");
+}
+
+function openGoogleMaps(place) {
+  const query = getMapQuery(place);
+  if (!query) return alert("Add a place name or location first.");
+  window.open(
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+    "_blank"
+  );
+}
+
+function MapButtons({ place, P }) {
+  const query = getMapQuery(place);
+  if (!query) return null;
+
+  const btnStyle = {
+    flex: 1,
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: `1.5px solid ${P.border}`,
+    background: "#fff",
+    color: P.forest,
+    fontWeight: 800,
+    fontSize: 12,
+    cursor: "pointer",
+  };
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{ display: "flex", gap: 8, marginTop: 10 }}
+    >
+      <button style={btnStyle} onClick={() => openAppleMaps(place)}>
+        📍 Apple Maps
+      </button>
+      <button style={btnStyle} onClick={() => openGoogleMaps(place)}>
+        Google Maps
+      </button>
+    </div>
+  );
+}
+
 function DetailSection({ title, children }) {
   if (
-  !children ||
-  children === "" ||
-  (Array.isArray(children) && children.length === 0)
-) {
-  return null;
-}
+    !children ||
+    children === "" ||
+    (Array.isArray(children) && children.length === 0)
+  ) {
+    return null;
+  }
 
   return (
     <div
@@ -82,7 +143,7 @@ function DetailList({ items, renderItem }) {
   return (
     <div>
       {items.map((item, i) => (
-        <div key={i} style={{ marginTop: i === 0 ? 0 : 6 }}>
+        <div key={i} style={{ marginTop: i === 0 ? 0 : 10 }}>
           {renderItem ? renderItem(item, i) : `• ${getText(item)}`}
         </div>
       ))}
@@ -105,16 +166,17 @@ export default function FriendsView({
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const pending = friends.filter((f) => f.status === "pending");
+
   const active = friends
-  .filter((f) => f.status === "friend")
-  .filter(
-    (f, i, arr) =>
-      arr.findIndex(
-        (x) =>
-          [x.requester_id, x.receiver_id].sort().join("-") ===
-          [f.requester_id, f.receiver_id].sort().join("-")
-      ) === i
-  );
+    .filter((f) => f.status === "friend")
+    .filter(
+      (f, i, arr) =>
+        arr.findIndex(
+          (x) =>
+            [x.requester_id, x.receiver_id].sort().join("-") ===
+            [f.requester_id, f.receiver_id].sort().join("-")
+        ) === i
+    );
 
   const openTrip = (trip) => {
     setSelectedTrip(trip);
@@ -146,11 +208,15 @@ export default function FriendsView({
           </div>
 
           {pending.length === 0 ? (
-            <div style={{ color: P.muted, fontSize: 13, marginBottom: 12 }}>No pending requests.</div>
+            <div style={{ color: P.muted, fontSize: 13, marginBottom: 12 }}>
+              No pending requests.
+            </div>
           ) : (
             pending.map((f) => (
               <div key={f.id} style={{ ...S.card, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: 18 }}>{f.name || "Camper"}</div>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>
+                  {f.name || "Camper"}
+                </div>
                 <div style={{ fontSize: 13, color: P.muted, marginTop: 3 }}>
                   Wants to see your camp trips
                 </div>
@@ -165,10 +231,12 @@ export default function FriendsView({
             onChange={async (e) => {
               const value = e.target.value;
               setSearch(value);
+
               if (value.trim().length < 3) {
                 setResults([]);
                 return;
               }
+
               const found = await searchProfiles(value);
               setResults(found || []);
             }}
@@ -185,7 +253,9 @@ export default function FriendsView({
 
           {results.map((profile) => (
             <div key={profile.id} style={{ ...S.card, padding: 12, marginBottom: 10 }}>
-              <div style={{ fontWeight: 700 }}>{profile.display_name || profile.email || "Camper"}</div>
+              <div style={{ fontWeight: 700 }}>
+                {profile.display_name || profile.email || "Camper"}
+              </div>
               <button onClick={() => sendFriendRequest(profile.id)}>Add</button>
             </div>
           ))}
@@ -217,7 +287,9 @@ export default function FriendsView({
 
         <div style={{ padding: 14 }}>
           {feedEntries.length === 0 ? (
-            <div style={{ color: P.muted, fontSize: 13 }}>No shared trips yet.</div>
+            <div style={{ color: P.muted, fontSize: 13 }}>
+              No shared trips yet.
+            </div>
           ) : (
             feedEntries.map((trip) => (
               <div
@@ -227,10 +299,21 @@ export default function FriendsView({
               >
                 {trip.photos?.length > 0 && (
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 3 }}>
-                    <img src={previewSrc(trip.photos[0])} loading="lazy" alt="" style={{ width: "100%", height: 190, objectFit: "cover" }} />
+                    <img
+                      src={previewSrc(trip.photos[0])}
+                      loading="lazy"
+                      alt=""
+                      style={{ width: "100%", height: 190, objectFit: "cover" }}
+                    />
                     <div style={{ display: "grid", gap: 3 }}>
                       {trip.photos.slice(1, 3).map((photo, i) => (
-                        <img key={i} src={previewSrc(photo)} loading="lazy" alt="" style={{ width: "100%", height: 93, objectFit: "cover" }} />
+                        <img
+                          key={i}
+                          src={previewSrc(photo)}
+                          loading="lazy"
+                          alt=""
+                          style={{ width: "100%", height: 93, objectFit: "cover" }}
+                        />
                       ))}
                     </div>
                   </div>
@@ -240,12 +323,16 @@ export default function FriendsView({
                   <div style={{ fontSize: 18, fontWeight: 700, color: P.forest }}>
                     {trip.campgroundName || trip.campground || "Untitled Trip"}
                   </div>
+
                   <div style={{ fontSize: 12, color: P.muted, marginTop: 3 }}>
-                  Shared by {trip.userName || trip.name || "Camper"}
-                </div>
+                    Shared by {trip.userName || trip.name || "Camper"}
+                  </div>
+
                   <div style={{ fontSize: 13, color: P.muted, marginTop: 4 }}>
                     📍 {trip.location || "No location"}
                   </div>
+
+                  <MapButtons place={trip} P={P} />
                 </div>
               </div>
             ))
@@ -368,6 +455,8 @@ export default function FriendsView({
                 📍 {selectedTrip.location || "No location"}
               </div>
 
+              <MapButtons place={selectedTrip} P={P} />
+
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
                 {selectedTrip.dates && (
                   <span style={{ padding: "6px 10px", borderRadius: 999, background: "#fff", border: `1px solid ${P.border}` }}>
@@ -410,11 +499,51 @@ export default function FriendsView({
               <DetailSection title="Fishing Log">
                 <DetailList
                   items={selectedTrip.fishingLog || selectedTrip.fishLog || []}
-                  renderItem={(fish) =>
-                    `🎣 ${fish.species || fish.name || fish.fish || getText(fish)}${
-                      fish.count ? ` x${fish.count}` : ""
-                    }${fish.notes ? ` — ${fish.notes}` : ""}`
-                  }
+                  renderItem={(fish) => {
+                    const spotName =
+                      fish.spotName ||
+                      fish.spot ||
+                      fish.location ||
+                      fish.place ||
+                      "Fishing Spot";
+
+                    return (
+                      <div
+                        style={{
+                          padding: 12,
+                          borderRadius: 12,
+                          background: "#fff",
+                          border: `1px solid ${P.border}`,
+                        }}
+                      >
+                        <div style={{ fontWeight: 900, color: P.forest, fontSize: 16 }}>
+                          🎣 {spotName}
+                        </div>
+
+                        <div style={{ marginTop: 4, color: P.muted, fontSize: 13 }}>
+                          {fish.species || fish.name || fish.fish || "Fish not listed"}
+                          {fish.count ? ` x${fish.count}` : ""}
+                          {fish.bait ? ` · ${fish.bait}` : ""}
+                          {fish.size ? ` · ${fish.size}` : ""}
+                        </div>
+
+                        {fish.notes && (
+                          <div style={{ marginTop: 6, fontSize: 13 }}>
+                            {fish.notes}
+                          </div>
+                        )}
+
+                        <MapButtons
+                          P={P}
+                          place={{
+                            spotName,
+                            location: fish.mapLocation || fish.location || selectedTrip.location,
+                            campgroundName: selectedTrip.campgroundName || selectedTrip.campground,
+                          }}
+                        />
+                      </div>
+                    );
+                  }}
                 />
               </DetailSection>
 
@@ -432,7 +561,28 @@ export default function FriendsView({
               <DetailSection title="Memory Spots">
                 <DetailList
                   items={selectedTrip.memorySpots || selectedTrip.memories || []}
-                  renderItem={(spot) => `📌 ${spot.title || spot.name || spot.note || getText(spot)}`}
+                  renderItem={(spot) => (
+                    <div
+                      style={{
+                        padding: 10,
+                        borderRadius: 10,
+                        background: "#fff",
+                        border: `1px solid ${P.border}`,
+                      }}
+                    >
+                      <div style={{ fontWeight: 800 }}>
+                        📌 {spot.title || spot.name || spot.note || getText(spot)}
+                      </div>
+                      <MapButtons
+                        P={P}
+                        place={{
+                          title: spot.title || spot.name,
+                          location: spot.location || selectedTrip.location,
+                          campgroundName: selectedTrip.campgroundName || selectedTrip.campground,
+                        }}
+                      />
+                    </div>
+                  )}
                 />
               </DetailSection>
 
