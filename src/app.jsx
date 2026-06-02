@@ -4147,6 +4147,295 @@ const niceDate = (s) => {
   const [y, m, d] = s.split("-");
   return `${MONTHS[+m - 1].slice(0, 3)} ${+d}, ${y}`;
 };
+
+function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [], onOpenPhotos }) {
+  if (!entry) return null;
+
+  const ep = profiles.filter((p) => entry.who?.includes(p.id));
+  const photos = entry.photos || [];
+  const sd = entry.siteDetails || {};
+  const fishLog = entry.fishingLog || [];
+  const countFish = (item) => Math.max(0, Number(item?.count) || 0);
+  const getSpotName = (item) => item.spotName || item.spot || "Fishing Spot";
+  const groupedSpots = Array.from(new Set(fishLog.map(getSpotName).filter(Boolean))).map((spot) => ({
+    spot,
+    catches: fishLog.filter((f) => getSpotName(f) === spot),
+  }));
+  const fishTotal = fishLog.reduce((s, f) => s + countFish(f), 0);
+  const activeFish = fishLog.filter((f) => countFish(f) > 0);
+  const trophy = activeFish
+    .slice()
+    .sort((a, b) => (parseFloat(b.size) || 0) - (parseFloat(a.size) || 0))[0];
+  const nights = entry.startDate && entry.endDate
+    ? Math.round((new Date(entry.endDate) - new Date(entry.startDate)) / 864e5)
+    : 0;
+  const cover = getTripCover(entry);
+  const coverImage =
+    previewSrc(entry.photos?.[0]) ||
+    previewSrc(entry.previewPhotos?.[0]) ||
+    previewSrc(entry.cover) ||
+    previewSrc(entry.cover_photo) ||
+    "";
+
+  const Section = ({ title, children }) => {
+    if (!children) return null;
+    return (
+      <div
+        style={{
+          background: "rgba(255,255,255,0.72)",
+          border: `1px solid ${P.border}`,
+          borderRadius: 13,
+          padding: "11px 12px",
+          marginTop: 10,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: P.muted,
+            marginBottom: 7,
+          }}
+        >
+          {title}
+        </div>
+        {children}
+      </div>
+    );
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.78)",
+        zIndex: 9998,
+        overflowY: "auto",
+        padding: 14,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: 720,
+          margin: "18px auto 90px",
+          background: P.bg,
+          borderRadius: 20,
+          overflow: "hidden",
+          boxShadow: "0 18px 60px rgba(0,0,0,0.35)",
+          border: `1px solid ${P.border}`,
+        }}
+      >
+        <div
+          style={{
+            background: `linear-gradient(135deg,${cover.c1},${cover.c2})`,
+            padding: "14px 16px",
+            color: "#fff",
+            position: "relative",
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              border: "none",
+              background: "rgba(0,0,0,0.32)",
+              color: "#fff",
+              borderRadius: 999,
+              padding: "6px 10px",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
+
+          <div style={{ display: "flex", gap: 12, paddingRight: 64 }}>
+            {coverImage ? (
+              <img
+                src={coverImage}
+                alt=""
+                loading="lazy"
+                style={{
+                  width: 72,
+                  height: 72,
+                  objectFit: "cover",
+                  borderRadius: 14,
+                  border: "2px solid rgba(255,255,255,0.65)",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255,255,255,0.18)",
+                  border: "2px solid rgba(255,255,255,0.42)",
+                  fontSize: 36,
+                  flexShrink: 0,
+                }}
+              >
+                {cover.emoji}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 22, fontWeight: 900, textShadow: "0 1px 3px rgba(0,0,0,0.75)", lineHeight: 1.15 }}>
+                {entry.campgroundName || "Untitled Trip"}
+              </div>
+              <div style={{ fontSize: 13, marginTop: 4, fontWeight: 700, color: "#F4EFE6", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
+                📍 {entry.location || "No location"}
+              </div>
+              <div style={{ fontSize: 12, marginTop: 5, fontWeight: 700, color: "#F4EFE6", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
+                {entry.startDate && (entry.endDate ? `🗓 ${niceDate(entry.startDate)} → ${niceDate(entry.endDate)}` : `🗓 ${niceDate(entry.startDate)}`)}
+                {nights > 0 ? ` · ${nights} night${nights !== 1 ? "s" : ""}` : ""}
+                {entry.siteNumber ? ` · Site #${entry.siteNumber}` : ""}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                {entry.rating > 0 && <Stars n={entry.rating} size={13} />}
+                {entry.returnWorthy === true && <Tag label="✅ Return" color="#CFFFD8" small />}
+                {entry.weather && <Tag label={entry.weather} color="#F4EFE6" small />}
+                {fishTotal > 0 && <Tag label={`🎣 ${fishTotal} fish`} color="#F4EFE6" small />}
+                {groupedSpots.length > 0 && <Tag label={`📍 ${groupedSpots.length} fishing spots`} color="#F4EFE6" small />}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: 14 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <Btn color={P.pine} onClick={(e) => { e.stopPropagation(); onEdit(entry); }} sx={{ flex: 1 }}>
+              ✏️ Edit Trip
+            </Btn>
+            <Btn outline color={P.red} onClick={(e) => { e.stopPropagation(); onDelete(entry); }} sx={{ flex: 1 }}>
+              🗑 Delete
+            </Btn>
+          </div>
+
+          {photos.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 4, marginBottom: 12 }}>
+              <img
+                src={previewSrc(photos[0])}
+                alt=""
+                loading="lazy"
+                onClick={() => onOpenPhotos(photos, 0)}
+                style={{ width: "100%", height: 190, objectFit: "cover", borderRadius: 12, cursor: "pointer", border: `1px solid ${P.border}` }}
+              />
+              <div style={{ display: "grid", gap: 4 }}>
+                {photos.slice(1, 3).map((p, i) => (
+                  <img
+                    key={p.id || i}
+                    src={previewSrc(p)}
+                    alt=""
+                    loading="lazy"
+                    onClick={() => onOpenPhotos(photos, i + 1)}
+                    style={{ width: "100%", height: 93, objectFit: "cover", borderRadius: 10, cursor: "pointer", border: `1px solid ${P.border}` }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Section title="Trip Notes">
+            {entry.notes ? <div style={{ fontSize: 14, lineHeight: 1.7, color: P.text }}>{entry.notes}</div> : null}
+          </Section>
+
+          <Section title="Fishing Spots">
+            {fishLog.length > 0 ? (
+              <div>
+                {trophy && (
+                  <div style={{ background: "#FFF8ED", border: `1px solid ${P.gold}55`, borderRadius: 11, padding: 10, marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: P.gold, textTransform: "uppercase", letterSpacing: "0.1em" }}>🏆 Best Fish</div>
+                    <div style={{ marginTop: 4, fontWeight: 900, color: P.forest }}>
+                      {trophy.species || "Fish"}{trophy.size ? ` · ${trophy.size}` : ""}
+                    </div>
+                    <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
+                      {getSpotName(trophy)}{trophy.bait ? ` · ${trophy.bait}` : ""}
+                    </div>
+                  </div>
+                )}
+
+                {groupedSpots.map((group) => (
+                  <div key={group.spot} style={{ background: "#EEF5F7", border: `1px solid ${P.water}33`, borderRadius: 12, padding: 10, marginTop: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                      <div style={{ fontWeight: 900, color: P.forest }}>📍 {group.spot}</div>
+                      <Tag label={`${group.catches.reduce((s, f) => s + countFish(f), 0)} fish`} color={P.water} small />
+                    </div>
+                    {group.catches.map((f) => (
+                      <div key={f.id} style={{ background: "rgba(255,255,255,0.75)", borderRadius: 10, padding: 9, marginTop: 6, border: `1px solid ${P.border}88` }}>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {f.photo?.url && (
+                            <img src={f.photo.url} alt="" style={{ width: 52, height: 52, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 900, color: P.forest }}>
+                              {countFish(f)}× {f.species || "No catch logged"}
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 5 }}>
+                              {f.size && <Tag label={`📏 ${f.size}`} color={P.gold} small />}
+                              {f.bait && <Tag label={`🎯 ${f.bait}`} color={P.water} small />}
+                              {f.time && <Tag label={`🕒 ${f.time}`} color={P.pine} small />}
+                              {f.water && <Tag label={`💧 ${f.water}`} color={P.teal} small />}
+                            </div>
+                            {f.notes && <div style={{ fontSize: 13, color: P.text, marginTop: 6, lineHeight: 1.6 }}>{f.notes}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </Section>
+
+          <Section title="Site Details">
+            {(sd.toiletType || sd.waterType || sd.shade || sd.pets || sd.waterProximity || sd.cleanRestrooms || sd.nearbyActivities?.length) ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {[sd.toiletType, sd.waterType, sd.shade, sd.pets, sd.waterProximity].filter(Boolean).map((x) => (
+                  <Tag key={x} label={x} color={P.teal} small />
+                ))}
+                {sd.cleanRestrooms && <Tag label="✓ Clean Restrooms" color={P.teal} small />}
+                {(sd.nearbyActivities || []).map((x) => <Tag key={x} label={x} color={P.pine} small />)}
+              </div>
+            ) : null}
+          </Section>
+
+          <Section title="Who Went">
+            {ep.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {ep.map((p) => <Tag key={p.id} label={`${p.emoji} ${p.name}`} color={p.color} small />)}
+              </div>
+            ) : null}
+          </Section>
+
+          <Section title="Remembered Spots">
+            {entry.memorySpots?.length > 0 ? (
+              <div>
+                {entry.memorySpots.map((m, i) => (
+                  <div key={i} style={{ fontSize: 13, marginTop: i ? 6 : 0 }}>
+                    <strong style={{ color: P.forest }}>📌 {m.title}</strong>{m.note ? ` — ${m.note}` : ""}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </Section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
   const [filter, setFilter] = useState("all");
   const [shareEntry, setShareEntry] = useState(null);
@@ -4155,6 +4444,7 @@ const [viewerIndex, setViewerIndex] = useState(null);
   const [photoLoaded, setPhotoLoaded] = useState(false);
   const [campResults, setCampResults] = useState([]);
 const [campSearchLoading, setCampSearchLoading] = useState(false);
+  const [detailEntry, setDetailEntry] = useState(null);
   useEffect(() => {
   if (viewerIndex !== null) {
     document.body.style.overflow = "hidden";
@@ -4364,7 +4654,11 @@ entries.forEach((e) => {
           previewSrc(entry.cover_photo) ||
           "";
         return (
-          <div key={entry.id} style={S.card}>
+          <div
+            key={entry.id}
+            onClick={() => setDetailEntry(entry)}
+            style={{ ...S.card, cursor: "pointer" }}
+          >
             <div
               style={{
                 ...S.hdrCard(cover.c1, cover.c2),
@@ -4484,7 +4778,7 @@ entries.forEach((e) => {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <button
-                  onClick={() => setShareEntry(entry)}
+                  onClick={(e) => { e.stopPropagation(); setShareEntry(entry); }}
                   style={{
                     background: "#ffffff22",
                     border: "none",
@@ -4498,7 +4792,7 @@ entries.forEach((e) => {
                   📤
                 </button>
                 <button
-                  onClick={() => onEdit(entry)}
+                  onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
                   style={{
                     background: "#ffffff22",
                     border: "none",
@@ -4512,7 +4806,7 @@ entries.forEach((e) => {
                   ✏️
                 </button>
                 <button
-                  onClick={() => onDelete(entry)}
+                  onClick={(e) => { e.stopPropagation(); onDelete(entry); }}
                   style={{
                     background: "#ffffff22",
                     border: "none",
@@ -4614,7 +4908,8 @@ entries.forEach((e) => {
                   {(entry.photos || []).slice(0, 3).map((p) => (
                     <div
                       key={p.id}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setViewerPhotos(entry.photos.map((x) => fullSrc(x)).filter(Boolean));
                         setViewerIndex(entry.photos.findIndex((x) => x.id === p.id));
                       }}
@@ -4758,6 +5053,26 @@ entries.forEach((e) => {
           </div>
         );
       })}
+      {detailEntry && (
+        <TripEntryDetailModal
+          entry={detailEntry}
+          profiles={profiles}
+          onClose={() => setDetailEntry(null)}
+          onEdit={(entry) => {
+            setDetailEntry(null);
+            onEdit(entry);
+          }}
+          onDelete={(entry) => {
+            setDetailEntry(null);
+            onDelete(entry);
+          }}
+          onOpenPhotos={(photos, index) => {
+            setViewerPhotos(photos.map((x) => fullSrc(x)).filter(Boolean));
+            setViewerIndex(index || 0);
+          }}
+        />
+      )}
+
       {shareEntry && (
         <ShareModal entry={shareEntry} onClose={() => setShareEntry(null)} />
       )}
