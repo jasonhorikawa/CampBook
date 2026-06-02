@@ -58,6 +58,48 @@ function fullSrc(photo) {
   }
   return "";
 }
+
+function tripCoverSrc(entry) {
+  const photos = entry?.photos || entry?.images || [];
+  const previews = entry?.previewPhotos || [];
+  return (
+    previewSrc(photos[0]) ||
+    previewSrc(previews[0]) ||
+    previewSrc(entry?.cover) ||
+    previewSrc(entry?.cover_photo) ||
+    previewSrc(entry?.trip_data?.photos?.[0]) ||
+    ""
+  );
+}
+
+const readableOnCover = {
+  color: "#FFF8E8",
+  fontWeight: 800,
+  textShadow: "0 1px 3px rgba(0,0,0,0.85)",
+};
+
+const CoverPill = ({ label, color = "#FFFFFF" }) => (
+  <span
+    style={{
+      background: "rgba(0,0,0,0.35)",
+      color: "#FFF8E8",
+      border: `1px solid ${color}88`,
+      borderRadius: 999,
+      padding: "3px 9px",
+      fontSize: 11,
+      fontWeight: 800,
+      letterSpacing: "0.02em",
+      textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 3,
+      maxWidth: "100%",
+    }}
+  >
+    {label}
+  </span>
+);
 // =======================
 // Auth + Supabase Helpers
 // =======================
@@ -144,7 +186,7 @@ async function loadTripsFromSupabase() {
   location: t.location || trip.location || "",
   previewPhotos: previewPhotos,
   photos: allPhotos,
-  cover: previewSrc(previewPhotos[0]) || trip.cover_photo || "",
+  cover: previewSrc(previewPhotos[0]) || previewSrc(t.cover) || trip.cover_photo || "",
   photoCount: allPhotos.length,
 };
 });
@@ -245,7 +287,7 @@ const profilesById = Object.fromEntries(
       location: t.location || trip.location || "",
       previewPhotos: previewPhotos,
       photos: allPhotos,
-      cover: trip.cover_photo || previewSrc(previewPhotos[0]) || "",
+      cover: previewSrc(previewPhotos[0]) || previewSrc(t.cover) || trip.cover_photo || "",
       photoCount: allPhotos.length,
       userName:
         t.userName ||
@@ -2398,7 +2440,10 @@ function fishMatches(q) {
 // ── Fishing Log Tab ───────────────────────────────────────
 function FishingLogTab({ form, set }) {
   const log = form.fishingLog || [];
-  const [fish, setFish] = useState({
+  const [editingId, setEditingId] = useState(null);
+  const [speciesQ, setSpeciesQ] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
+  const [catchForm, setCatchForm] = useState({
     species: "",
     count: "",
     size: "",
@@ -2408,26 +2453,29 @@ function FishingLogTab({ form, set }) {
     water: "",
     notes: "",
     rating: 0,
-    photo: null,
   });
-  const [speciesQ, setSpeciesQ] = useState("");
-  const [showGuide, setShowGuide] = useState(false);
-  const photoRef = useRef();
-  const totalFish = log.reduce((s, f) => s + (+f.count || 1), 0);
-  const trophy = log
+
+  const totalFish = log.reduce((sum, item) => sum + Math.max(0, Number(item.count) || 0), 0);
+  const validCatches = log.filter((item) => Math.max(0, Number(item.count) || 0) > 0);
+  const trophy = validCatches
     .slice()
     .sort((a, b) => (parseFloat(b.size) || 0) - (parseFloat(a.size) || 0))[0];
+
+  const speciesList = [...new Set(validCatches.map((f) => f.species).filter(Boolean))];
+
   const favoriteBait = (() => {
     const counts = {};
-    log.forEach((f) => {
-      if (f.bait) counts[f.bait] = (counts[f.bait] || 0) + (+f.count || 1);
+    validCatches.forEach((f) => {
+      if (!f.bait) return;
+      counts[f.bait] = (counts[f.bait] || 0) + Math.max(0, Number(f.count) || 0);
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
   })();
-  const addFish = () => {
-    if (!fish.species.trim()) return;
-    set("fishingLog", [...log, { ...fish, id: "fish" + Date.now() }]);
-    setFish({
+
+  const resetCatchForm = () => {
+    setEditingId(null);
+    setSpeciesQ("");
+    setCatchForm({
       species: "",
       count: "",
       size: "",
@@ -2437,34 +2485,114 @@ function FishingLogTab({ form, set }) {
       water: "",
       notes: "",
       rating: 0,
-      photo: null,
     });
-    setSpeciesQ("");
   };
-  const removeFish = (id) =>
+
+  const saveCatch = () => {
+    if (!catchForm.species.trim() && !catchForm.spot.trim()) {
+      alert("Add at least a fish species or fishing spot.");
+      return;
+    }
+
+    const cleanCatch = {
+      ...catchForm,
+      species: catchForm.species.trim(),
+      spot: catchForm.spot.trim(),
+      count:
+        catchForm.count === "" || catchForm.count === null
+          ? "0"
+          : String(Math.max(0, Number(catchForm.count) || 0)),
+      id: editingId || "fish" + Date.now(),
+    };
+
+    if (editingId) {
+      set(
+        "fishingLog",
+        log.map((item) => (item.id === editingId ? cleanCatch : item))
+      );
+    } else {
+      set("fishingLog", [...log, cleanCatch]);
+    }
+
+    resetCatchForm();
+  };
+
+  const editCatch = (item) => {
+    setEditingId(item.id);
+    setSpeciesQ(item.species || "");
+    setCatchForm({
+      species: item.species || "",
+      count: item.count ?? "",
+      size: item.size || "",
+      bait: item.bait || "",
+      time: item.time || "",
+      spot: item.spot || "",
+      water: item.water || "",
+      notes: item.notes || "",
+      rating: item.rating || 0,
+    });
+  };
+
+  const removeCatch = (id) => {
     set(
       "fishingLog",
-      log.filter((f) => f.id !== id)
+      log.filter((item) => item.id !== id)
     );
+    if (editingId === id) resetCatchForm();
+  };
+
   const pickSpecies = (sp) => {
-    setFish({ ...fish, species: sp.name });
+    setCatchForm((prev) => ({ ...prev, species: sp.name }));
     setSpeciesQ(sp.name);
+    setShowGuide(false);
   };
-  const handlePhoto = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const r = new FileReader();
-    r.onload = (ev) =>
-      setFish((p) => ({
-        ...p,
-        photo: { url: ev.target.result, name: file.name },
-      }));
-    r.readAsDataURL(file);
-    e.target.value = "";
-  };
+
+  const Field = ({ placeholder, value, onChange, type = "text" }) => (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      style={{
+        width: "100%",
+        padding: "10px 12px",
+        background: "#fff",
+        border: `1.5px solid ${P.border}`,
+        borderRadius: 10,
+        fontSize: 14,
+        fontFamily: "'Lora',Georgia,serif",
+        color: P.text,
+        outline: "none",
+        boxSizing: "border-box",
+      }}
+    />
+  );
+
   return (
     <div>
-      <SLabel mt={0}>🎣 Fishing</SLabel>
+      <SLabel mt={0}>🎣 Fishing Sessions</SLabel>
+
+      <div
+        style={{
+          background: `linear-gradient(135deg, ${P.water}, ${P.pine})`,
+          borderRadius: 16,
+          padding: 14,
+          color: "#FFF8E8",
+          marginBottom: 12,
+          boxShadow: "0 4px 14px rgba(0,0,0,0.16)",
+        }}
+      >
+        <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.8 }}>
+          Trip Fishing Summary
+        </div>
+        <div style={{ fontSize: 19, fontWeight: 900, marginTop: 4 }}>
+          Log spots, baits, fish, and notes.
+        </div>
+        <div style={{ fontSize: 12, lineHeight: 1.5, marginTop: 5, opacity: 0.92 }}>
+          Use this when you camp at one place but fish multiple lakes, creeks, or shore spots.
+        </div>
+      </div>
+
       <div
         style={{
           display: "grid",
@@ -2474,193 +2602,132 @@ function FishingLogTab({ form, set }) {
         }}
       >
         {[
-          { l: "Caught", v: totalFish, e: "🎣" },
+          { l: "Fish", v: totalFish, e: "🎣" },
           { l: "Entries", v: log.length, e: "📝" },
-          { l: "Top Bait", v: favoriteBait || "—", e: "🎯" },
-        ].map((s) => (
+          { l: "Species", v: speciesList.length, e: "🐟" },
+        ].map((stat) => (
           <div
-            key={s.l}
+            key={stat.l}
             style={{
               background: P.cream,
               border: `1px solid ${P.border}`,
-              borderRadius: 10,
-              padding: "9px 6px",
+              borderRadius: 12,
+              padding: "10px 6px",
               textAlign: "center",
-              minWidth: 0,
             }}
           >
-            <div style={{ fontSize: 17 }}>{s.e}</div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: P.forest,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {s.v}
+            <div style={{ fontSize: 18 }}>{stat.e}</div>
+            <div style={{ fontSize: 17, fontWeight: 900, color: P.forest }}>
+              {stat.v}
             </div>
             <div
               style={{
                 fontSize: 9,
                 color: P.muted,
                 textTransform: "uppercase",
-                letterSpacing: "0.07em",
+                letterSpacing: "0.08em",
+                fontWeight: 800,
               }}
             >
-              {s.l}
+              {stat.l}
             </div>
           </div>
         ))}
       </div>
-      {trophy && (
+
+      {(trophy || favoriteBait) && (
         <div
           style={{
             background: "#FFF8ED",
-            border: `1.5px solid ${P.gold}55`,
-            borderRadius: 12,
+            border: `1.5px solid ${P.gold}66`,
+            borderRadius: 14,
             padding: "10px 12px",
             marginBottom: 12,
           }}
         >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: P.gold,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              marginBottom: 4,
-            }}
-          >
-            🏆 Trophy Fish
-          </div>
-          <div style={{ fontWeight: 700, color: P.forest, fontSize: 15 }}>
-            {trophy.species}
-            {trophy.size ? ` · ${trophy.size}` : ""}
-          </div>
-          <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-            {trophy.bait && `Caught on ${trophy.bait}`}
-            {trophy.spot && ` at ${trophy.spot}`}
-          </div>
-        </div>
-      )}
-      {log.length > 0 && (
-        <>
-          <SLabel>Saved Catches</SLabel>
-          {log.map((f) => (
-            <div
-              key={f.id}
-              style={{
-                background: "#EEF5F7",
-                border: `1px solid ${P.water}33`,
-                borderRadius: 11,
-                padding: "10px 12px",
-                marginBottom: 8,
-              }}
-            >
+          {trophy && (
+            <>
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 8,
+                  fontSize: 11,
+                  fontWeight: 900,
+                  color: P.gold,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  marginBottom: 4,
                 }}
               >
-                {f.photo && (
-                  <img
-                    src={f.photo.url}
-                    alt=""
-                    style={{
-                      width: 54,
-                      height: 54,
-                      borderRadius: 9,
-                      objectFit: "cover",
-                      border: `1px solid ${P.border}`,
-                    }}
-                  />
-                )}
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{ fontWeight: 700, color: P.forest, fontSize: 15 }}
-                  >
-                    {f.count || 1}× {f.species}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: P.muted,
-                      marginTop: 3,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {f.bait && `🎯 ${f.bait} · `}
-                    {f.time && `🕒 ${f.time} · `}
-                    {f.spot && `📍 ${f.spot}`}
-                  </div>
-                  {f.size && (
-                    <div style={{ fontSize: 12, color: P.water, marginTop: 3 }}>
-                      📏 {f.size}
-                    </div>
-                  )}
-                  {f.water && (
-                    <div style={{ fontSize: 12, color: P.teal, marginTop: 3 }}>
-                      💧 {f.water}
-                    </div>
-                  )}
-                  {f.rating > 0 && <Stars n={f.rating} size={12} />}{" "}
-                  {f.notes && (
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: P.text,
-                        marginTop: 6,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {f.notes}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => removeFish(f.id)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: P.red,
-                    fontSize: 18,
-                    cursor: "pointer",
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  ×
-                </button>
+                🏆 Trophy Fish
               </div>
+              <div style={{ fontWeight: 900, color: P.forest, fontSize: 15 }}>
+                {trophy.species || "Fish"}
+                {trophy.size ? ` · ${trophy.size}` : ""}
+              </div>
+            </>
+          )}
+          {favoriteBait && (
+            <div style={{ fontSize: 12, color: P.muted, marginTop: trophy ? 5 : 0 }}>
+              Best bait so far: <b>{favoriteBait}</b>
             </div>
-          ))}
-        </>
+          )}
+        </div>
       )}
-      <SLabel>{log.length ? "Add Another Catch" : "Add First Catch"}</SLabel>
-      <div style={{ position: "relative" }}>
-        <Inp
+
+      <SLabel>{editingId ? "Edit Fishing Entry" : "Add Fishing Entry"}</SLabel>
+
+      <div
+        style={{
+          background: "#FFFFFF88",
+          border: `1px solid ${P.border}`,
+          borderRadius: 14,
+          padding: 12,
+          marginBottom: 12,
+        }}
+      >
+        <Field
+          placeholder="Fishing spot, e.g. Gull Lake south shore"
+          value={catchForm.spot}
+          onChange={(e) => setCatchForm({ ...catchForm, spot: e.target.value })}
+        />
+
+        <div style={{ height: 8 }} />
+
+        <Field
+          placeholder="Fish species, e.g. Rainbow Trout"
           value={speciesQ}
           onChange={(e) => {
             setSpeciesQ(e.target.value);
-            setFish({ ...fish, species: e.target.value });
+            setCatchForm({ ...catchForm, species: e.target.value });
           }}
-          placeholder="Search fish species, e.g. trout, bass, catfish"
         />
-        {speciesQ && (
+
+        <button
+          type="button"
+          onClick={() => setShowGuide((v) => !v)}
+          style={{
+            marginTop: 8,
+            width: "100%",
+            padding: "8px 10px",
+            border: `1px solid ${P.water}44`,
+            background: P.water + "14",
+            color: P.water,
+            borderRadius: 10,
+            fontFamily: "'Lora',Georgia,serif",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          🐟 Fish identifier guide {showGuide ? "▲" : "▼"}
+        </button>
+
+        {showGuide && (
           <div
             style={{
-              background: "#fff",
-              border: `1.5px solid ${P.border}`,
-              borderRadius: 10,
-              marginTop: -6,
-              marginBottom: 10,
+              marginTop: 8,
+              border: `1px solid ${P.border}`,
+              borderRadius: 12,
               overflow: "hidden",
-              boxShadow: "0 4px 12px #00000010",
+              background: "#fff",
             }}
           >
             {fishMatches(speciesQ).map((sp) => (
@@ -2669,1101 +2736,198 @@ function FishingLogTab({ form, set }) {
                 onClick={() => pickSpecies(sp)}
                 style={{
                   width: "100%",
-                  padding: "9px 12px",
-                  background:
-                    fish.species === sp.name ? P.water + "16" : "#fff",
-                  border: "none",
-                  borderBottom: `1px solid ${P.border}66`,
                   textAlign: "left",
+                  border: "none",
+                  background: "transparent",
+                  borderBottom: `1px solid ${P.border}77`,
+                  padding: "9px 10px",
                   cursor: "pointer",
-                  fontFamily: "'Lora',Georgia,serif",
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, color: P.forest }}>
-                  🎣 {sp.name}
-                </div>
-                <div style={{ fontSize: 11, color: P.muted, marginTop: 2 }}>
-                  {sp.family} · {sp.water}
-                </div>
+                <div style={{ fontWeight: 900, color: P.forest }}>{sp.name}</div>
+                <div style={{ fontSize: 11, color: P.muted }}>{sp.tips}</div>
               </button>
             ))}
           </div>
         )}
-      </div>
-      <button
-        onClick={() => setShowGuide(!showGuide)}
-        style={{
-          width: "100%",
-          background: P.cream,
-          border: `1px solid ${P.border}`,
-          borderRadius: 10,
-          padding: "9px 12px",
-          fontFamily: "'Lora',Georgia,serif",
-          fontSize: 13,
-          color: P.earth,
-          cursor: "pointer",
-          marginBottom: 10,
-          textAlign: "left",
-        }}
-      >
-        🔎 Fish identifier guide {showGuide ? "▲" : "▼"}
-      </button>
-      {showGuide && (
+
         <div
           style={{
-            background: P.card,
-            border: `1px solid ${P.border}`,
-            borderRadius: 12,
-            padding: "10px 12px",
-            marginBottom: 12,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 8,
+            marginTop: 8,
           }}
         >
-          {fishMatches(speciesQ || fish.species).map((sp) => (
-            <div
-              key={sp.name}
-              style={{
-                padding: "7px 0",
-                borderBottom: `1px solid ${P.border}88`,
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 700, color: P.forest }}>
-                {sp.name}
-              </div>
-              <div style={{ fontSize: 12, color: P.muted, lineHeight: 1.5 }}>
-                {sp.tips}
-              </div>
-            </div>
-          ))}
+          <Field
+            type="number"
+            placeholder="Count, e.g. 4"
+            value={catchForm.count}
+            onChange={(e) => setCatchForm({ ...catchForm, count: e.target.value })}
+          />
+          <Field
+            placeholder='Largest, e.g. 14"'
+            value={catchForm.size}
+            onChange={(e) => setCatchForm({ ...catchForm, size: e.target.value })}
+          />
+          <Field
+            placeholder="Bait/lure"
+            value={catchForm.bait}
+            onChange={(e) => setCatchForm({ ...catchForm, bait: e.target.value })}
+          />
+          <Field
+            placeholder="Time fished"
+            value={catchForm.time}
+            onChange={(e) => setCatchForm({ ...catchForm, time: e.target.value })}
+          />
+        </div>
+
+        <div style={{ marginTop: 8 }}>
+          <Field
+            placeholder="Water conditions, e.g. clear, windy, moving water"
+            value={catchForm.water}
+            onChange={(e) => setCatchForm({ ...catchForm, water: e.target.value })}
+          />
+        </div>
+
+        <textarea
+          value={catchForm.notes}
+          onChange={(e) => setCatchForm({ ...catchForm, notes: e.target.value })}
+          placeholder="Notes, e.g. fish were cruising the dropoff, bites slowed after sunrise..."
+          style={{
+            width: "100%",
+            minHeight: 78,
+            marginTop: 8,
+            padding: 10,
+            background: "#fff",
+            border: `1.5px solid ${P.border}`,
+            borderRadius: 10,
+            fontSize: 13,
+            fontFamily: "'Lora',Georgia,serif",
+            color: P.text,
+            outline: "none",
+            boxSizing: "border-box",
+            resize: "vertical",
+          }}
+        />
+
+        <div style={{ marginTop: 10 }}>
           <div
             style={{
               fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
               color: P.muted,
-              marginTop: 8,
-              fontStyle: "italic",
+              marginBottom: 6,
             }}
           >
-            Manual guide only. Real AI photo ID would need an image-recognition
-            backend later.
+            Fishing Spot Rating
           </div>
+          <Stars
+            n={catchForm.rating || 0}
+            onRate={(rating) => setCatchForm({ ...catchForm, rating })}
+            size={22}
+          />
         </div>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          {editingId && (
+            <Btn outline color={P.muted} onClick={resetCatchForm} sx={{ flex: 1 }}>
+              Cancel
+            </Btn>
+          )}
+          <Btn color={P.water} onClick={saveCatch} sx={{ flex: 2 }}>
+            {editingId ? "Save Fishing Entry" : "+ Add Fishing Entry"}
+          </Btn>
+        </div>
+      </div>
+
+      {log.length > 0 && (
+        <>
+          <SLabel>Saved Fishing Entries</SLabel>
+          {log.map((item) => {
+            const count = Math.max(0, Number(item.count) || 0);
+            return (
+              <div
+                key={item.id}
+                style={{
+                  background: "#EEF5F7",
+                  border: `1px solid ${P.water}33`,
+                  borderRadius: 13,
+                  padding: "11px 12px",
+                  marginBottom: 9,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 900, color: P.forest, fontSize: 15 }}>
+                      {count > 0 ? `${count}× ` : "No fish · "}
+                      {item.species || "Fishing Entry"}
+                    </div>
+                    <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
+                      {item.spot || "No spot listed"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 5 }}>
+                    <button
+                      onClick={() => editCatch(item)}
+                      style={{
+                        border: "none",
+                        background: P.amber,
+                        color: "#fff",
+                        borderRadius: 8,
+                        padding: "5px 7px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => removeCatch(item.id)}
+                      style={{
+                        border: "none",
+                        background: P.red,
+                        color: "#fff",
+                        borderRadius: 8,
+                        padding: "5px 7px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                  {item.size && <Tag label={`🏆 ${item.size}`} color={P.gold} small />}
+                  {item.bait && <Tag label={`🎯 ${item.bait}`} color={P.water} small />}
+                  {item.time && <Tag label={`⏱ ${item.time}`} color={P.earth} small />}
+                  {item.water && <Tag label={`💧 ${item.water}`} color={P.teal} small />}
+                  {item.rating > 0 && <Tag label={`⭐ ${item.rating}/5`} color={P.gold} small />}
+                </div>
+
+                {item.notes && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: P.text,
+                      lineHeight: 1.5,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    “{item.notes}”
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <Inp
-          value={fish.count}
-          onChange={(e) => setFish({ ...fish, count: e.target.value })}
-          placeholder="Count"
-          type="number"
-        />
-        <Inp
-          value={fish.size}
-          onChange={(e) => setFish({ ...fish, size: e.target.value })}
-          placeholder="Size, e.g. 14 in"
-        />
-      </div>
-      <Inp
-        value={fish.bait}
-        onChange={(e) => setFish({ ...fish, bait: e.target.value })}
-        placeholder="Bait / lure, e.g. nightcrawler, Panther Martin"
-      />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <Inp
-          value={fish.time}
-          onChange={(e) => setFish({ ...fish, time: e.target.value })}
-          placeholder="Time, e.g. 7:30am"
-        />
-        <Inp
-          value={fish.water}
-          onChange={(e) => setFish({ ...fish, water: e.target.value })}
-          placeholder="Water, e.g. clear, moving"
-        />
-      </div>
-      <Inp
-        value={fish.spot}
-        onChange={(e) => setFish({ ...fish, spot: e.target.value })}
-        placeholder="Spot / pin, e.g. creek bend by site 42"
-      />
-      <input
-        ref={photoRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handlePhoto}
-      />
-      <button
-        onClick={() => photoRef.current?.click()}
-        style={{
-          width: "100%",
-          background: "transparent",
-          border: `1.5px dashed ${P.border}`,
-          borderRadius: 10,
-          color: P.muted,
-          padding: 10,
-          fontSize: 13,
-          fontFamily: "'Lora',Georgia,serif",
-          cursor: "pointer",
-          marginBottom: 10,
-        }}
-      >
-        {fish.photo ? `📷 ${fish.photo.name}` : "📷 Add catch photo"}
-      </button>
-      <SLabel>Fishing Spot Rating</SLabel>
-      <div style={{ marginBottom: 12 }}>
-        <Stars
-          n={fish.rating}
-          onRate={(r) => setFish({ ...fish, rating: r })}
-          size={26}
-        />
-      </div>
-      <textarea
-        value={fish.notes}
-        onChange={(e) => setFish({ ...fish, notes: e.target.value })}
-        placeholder="Water clarity, depth, where fish were holding, what worked..."
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          background: "#fff",
-          border: `1.5px solid ${P.border}`,
-          borderRadius: 10,
-          fontSize: 14,
-          fontFamily: "'Lora',Georgia,serif",
-          color: P.text,
-          outline: "none",
-          boxSizing: "border-box",
-          resize: "vertical",
-          minHeight: 80,
-          marginBottom: 12,
-        }}
-      />
-      <Btn full color={P.water} onClick={addFish}>
-        + Add Catch
-      </Btn>
     </div>
   );
 }
-
-// ── Edit Entry ────────────────────────────────────────────
-const WEATHER = [
-  "☀️ Hot & Sunny",
-  "🌤 Warm & Clear",
-  "⛅ Partly Cloudy",
-  "🌧 Rainy",
-  "🌩 Stormy",
-  "🌬 Windy",
-  "❄️ Cold",
-  "🌫 Foggy",
-];
-const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
-  const [form, setForm] = useState(
-    () =>
-      initial || {
-        campgroundName: "",
-        location: "",
-        emoji: "🏕️",
-        startDate: null,
-        endDate: null,
-        siteNumber: "",
-        rating: 0,
-        notes: "",
-        wishlist: [],
-        photos: [],
-        who: [],
-        weather: "",
-        totalCost: "",
-        returnWorthy: null,
-        packingList: [],
-        activities: [],
-        siteDetails: {},
-        fishingLog: [],
-        mileage: "",
-        gasCost: "",
-        fuelGallons: "",
-        privacy: "private",
-        memorySpots: [],
-        tripCover: "auto",
-      }
-  );
-  const [etab, setEtab] = useState("main");
-  const [wSite, setWSite] = useState("");
-  const [wNote, setWNote] = useState("");
-  const [showW, setShowW] = useState(false);
-  const [mTitle, setMTitle] = useState("");
-  const [mNote, setMNote] = useState("");
-  const [showM, setShowM] = useState(false);
-  const [campResults, setCampResults] = useState([]);
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
-  const toggleWho = (id) =>
-    set(
-      "who",
-      form.who?.includes(id)
-        ? form.who.filter((x) => x !== id)
-        : [...(form.who || []), id]
-    );
-  const genPack = () => {
-    set("packingList", buildPacking(form.activities || []));
-    setEtab("packing");
-  };
-  const togglePack = (id) =>
-    set(
-      "packingList",
-      form.packingList.map((i) =>
-        i.id === id ? { ...i, checked: !i.checked } : i
-      )
-    );
-  const [newItem, setNewItem] = useState("");
-  const ETABS = [
-    { k: "main", l: "Trip" },
-    { k: "site", l: "Site" },
-    { k: "fishing", l: "Fishing" },
-    { k: "packing", l: "Packing" },
-  ];
-  return (
-    <div style={S.scroll}>
-      <div
-        style={{
-          display: "flex",
-          background: P.card,
-          borderRadius: 12,
-          border: `1px solid ${P.border}`,
-          marginBottom: 12,
-          overflow: "hidden",
-        }}
-      >
-        {ETABS.map((t) => (
-          <button
-            key={t.k}
-            onClick={() => setEtab(t.k)}
-            style={{
-              flex: 1,
-              padding: "10px 0",
-              background: etab === t.k ? P.forest : "transparent",
-              color: etab === t.k ? "#F4EFE6" : P.muted,
-              border: "none",
-              fontFamily: "'Lora',Georgia,serif",
-              fontSize: 13,
-              fontWeight: etab === t.k ? 700 : 400,
-              cursor: "pointer",
-            }}
-          >
-            {t.l}
-          </button>
-        ))}
-      </div>
-      <div style={S.card}>
-        <div style={{ padding: "12px 14px" }}>
-          {etab === "main" && (
-            <>
-              {!initial?.campgroundName && (
-                <>
-                  <SLabel mt={0}>Campground Name</SLabel>
-                  <Inp
-                     value={form.campgroundName}
-                     onChange={async (e) => {
-                     const value = e.target.value;
-                     set("campgroundName", value);
-
-                     const results = await searchCampgrounds(value);
-                     setCampResults(results);
-                   }}
-                   placeholder="e.g. Lake Cachuma Recreation Area"
-                />
-                  {campResults.length > 0 && (
-  <div
-    style={{
-      background: "#fff",
-      border: `1.5px solid ${P.border}`,
-      borderRadius: 12,
-      marginBottom: 10,
-      overflow: "hidden",
-    }}
-  >
-    {campResults.map((camp) => (
-      <button
-        key={camp.FacilityID}
-        onClick={() => {
-          set("campgroundName", camp.FacilityName || "");
-          set("location", camp.FacilityAddress?.[0]?.AddressStateCode || "");
-          setCampResults([]);
-        }}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          background: "#fff",
-          border: "none",
-          borderBottom: `1px solid ${P.border}`,
-          textAlign: "left",
-          fontFamily: "'Lora',Georgia,serif",
-          cursor: "pointer",
-        }}
-      >
-        <div style={{ fontWeight: 700, color: P.forest }}>
-          {camp.FacilityName}
-        </div>
-        <div style={{ fontSize: 12, color: P.muted }}>
-          {camp.FacilityTypeDescription || "Campground"}
-        </div>
-      </button>
-    ))}
-  </div>
-)}
-                  <SLabel>Location</SLabel>
-                  <Inp
-                    value={form.location}
-                    onChange={(e) => set("location", e.target.value)}
-                    placeholder="e.g. Santa Barbara, CA"
-                  />
-                </>
-              )}
-              {initial?.campgroundName && (
-                <div
-                  style={{
-                    background: P.cream,
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    marginBottom: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                  }}
-                >
-                  <span style={{ fontSize: 26 }}>{form.emoji}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>
-                      {form.campgroundName}
-                    </div>
-                    <div style={{ fontSize: 12, color: P.muted }}>
-                      {form.location}
-                    </div>
-                  </div>
-                </div>
-              )}
-              <SLabel mt={0}>Trip Dates</SLabel>
-              <DatePicker
-                startDate={form.startDate}
-                endDate={form.endDate}
-                onChange={({ startDate, endDate }) =>
-                  setForm((p) => ({ ...p, startDate, endDate }))
-                }
-              />
-              <SLabel>Site Number Stayed</SLabel>
-              <Inp
-                value={form.siteNumber}
-                onChange={(e) => set("siteNumber", e.target.value)}
-                placeholder="e.g. 42"
-              />
-              <SLabel>Your Rating</SLabel>
-              <div style={{ marginBottom: 12 }}>
-                <Stars
-                  n={form.rating}
-                  onRate={(r) => set("rating", r)}
-                  size={28}
-                />
-              </div>
-              <SLabel>Who came?</SLabel>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 7,
-                  marginBottom: 12,
-                }}
-              >
-                {profiles.map((p) => {
-                  const sel = form.who?.includes(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => toggleWho(p.id)}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 20,
-                        border: `1.5px solid ${sel ? p.color : P.border}`,
-                        background: sel ? p.color + "22" : "transparent",
-                        color: sel ? p.color : P.muted,
-                        fontFamily: "'Lora',Georgia,serif",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        fontWeight: sel ? 700 : 400,
-                      }}
-                    >
-                      {p.emoji} {p.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <SLabel>Privacy</SLabel>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                {[
-                  { k: "private", l: "🔒 Private" },
-                  { k: "friends", l: "👥 Friends" },
-                  { k: "link", l: "🔗 Link" },
-                ].map((o) => (
-                  <button
-                    key={o.k}
-                    onClick={() => set("privacy", o.k)}
-                    style={{
-                      flex: 1,
-                      padding: "8px 6px",
-                      borderRadius: 10,
-                      border: `1.5px solid ${
-                        form.privacy === o.k ? P.pine : P.border
-                      }`,
-                      background:
-                        form.privacy === o.k ? P.pine + "22" : "transparent",
-                      color: form.privacy === o.k ? P.pine : P.muted,
-                      fontFamily: "'Lora',Georgia,serif",
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontWeight: form.privacy === o.k ? 700 : 400,
-                    }}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-              <SLabel>Weather</SLabel>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  marginBottom: 12,
-                }}
-              >
-                {WEATHER.map((w) => (
-                  <button
-                    key={w}
-                    onClick={() => set("weather", form.weather === w ? "" : w)}
-                    style={{
-                      padding: "5px 11px",
-                      borderRadius: 20,
-                      border: `1.5px solid ${
-                        form.weather === w ? P.amber : P.border
-                      }`,
-                      background:
-                        form.weather === w ? P.amber + "22" : "transparent",
-                      color: form.weather === w ? P.amber : P.muted,
-                      fontFamily: "'Lora',Georgia,serif",
-                      fontSize: 12,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {w}
-                  </button>
-                ))}
-              </div>
-              <SLabel>Total Trip Cost</SLabel>
-              <div style={{ position: "relative", marginBottom: 12 }}>
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: P.muted,
-                    fontSize: 15,
-                  }}
-                >
-                  $
-                </span>
-                <input
-                  type="number"
-                  value={form.totalCost}
-                  onChange={(e) => set("totalCost", e.target.value)}
-                  placeholder="0.00"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px 10px 28px",
-                    background: "#fff",
-                    border: `1.5px solid ${P.border}`,
-                    borderRadius: 10,
-                    fontSize: 15,
-                    fontFamily: "'Lora',Georgia,serif",
-                    color: P.text,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-              <SLabel>Travel / Gas</SLabel>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 8,
-                }}
-              >
-                <Inp
-                  value={form.mileage || ""}
-                  onChange={(e) => set("mileage", e.target.value)}
-                  placeholder="Miles driven"
-                  type="number"
-                />
-                <Inp
-                  value={form.gasCost || ""}
-                  onChange={(e) => set("gasCost", e.target.value)}
-                  placeholder="Gas cost $"
-                  type="number"
-                />
-              </div>
-              <Inp
-                value={form.fuelGallons || ""}
-                onChange={(e) => set("fuelGallons", e.target.value)}
-                placeholder="Gallons used (optional)"
-                type="number"
-              />
-              <SLabel>Would You Return?</SLabel>
-              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-                {[
-                  { v: true, l: "✅ Yes!" },
-                  { v: false, l: "❌ Probably not" },
-                ].map((o) => (
-                  <button
-                    key={o.l}
-                    onClick={() =>
-                      set(
-                        "returnWorthy",
-                        form.returnWorthy === o.v ? null : o.v
-                      )
-                    }
-                    style={{
-                      flex: 1,
-                      padding: "8px",
-                      borderRadius: 10,
-                      border: `1.5px solid ${
-                        form.returnWorthy === o.v
-                          ? o.v
-                            ? P.pine
-                            : P.red
-                          : P.border
-                      }`,
-                      background:
-                        form.returnWorthy === o.v
-                          ? o.v
-                            ? P.pine + "22"
-                            : P.red + "22"
-                          : "transparent",
-                      color:
-                        form.returnWorthy === o.v
-                          ? o.v
-                            ? P.pine
-                            : P.red
-                          : P.muted,
-                      fontFamily: "'Lora',Georgia,serif",
-                      fontSize: 13,
-                      cursor: "pointer",
-                      fontWeight: form.returnWorthy === o.v ? 700 : 400,
-                    }}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-              <SLabel>Notes & Memories</SLabel>
-              <textarea
-                value={form.notes}
-                onChange={(e) => set("notes", e.target.value)}
-                placeholder="What made this trip special? Fishing spots, trail tips, campfire memories..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  background: "#fff",
-                  border: `1.5px solid ${P.border}`,
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontFamily: "'Lora',Georgia,serif",
-                  color: P.text,
-                  outline: "none",
-                  boxSizing: "border-box",
-                  resize: "vertical",
-                  minHeight: 90,
-                  marginBottom: 12,
-                }}
-              />
-              <SLabel>📍 Remember This Spot</SLabel>
-              {(form.memorySpots || []).map((m, i) => (
-                <div
-                  key={i}
-                  style={{
-                    background: P.cream,
-                    border: `1px solid ${P.border}`,
-                    borderRadius: 9,
-                    padding: "8px 10px",
-                    marginBottom: 7,
-                    display: "flex",
-                    gap: 8,
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{ fontWeight: 700, color: P.forest, fontSize: 13 }}
-                    >
-                      {m.title}
-                    </div>
-                    {m.note && (
-                      <div
-                        style={{ fontSize: 12, color: P.muted, marginTop: 2 }}
-                      >
-                        {m.note}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() =>
-                      set(
-                        "memorySpots",
-                        (form.memorySpots || []).filter((_, j) => j !== i)
-                      )
-                    }
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: P.red,
-                      fontSize: 18,
-                      cursor: "pointer",
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              {showM ? (
-                <div
-                  style={{
-                    background: P.cream,
-                    border: `1.5px solid ${P.border}`,
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <Inp
-                    value={mTitle}
-                    onChange={(e) => setMTitle(e.target.value)}
-                    placeholder="Spot name, e.g. creek bend, sunset rock"
-                  />
-                  <Inp
-                    value={mNote}
-                    onChange={(e) => setMNote(e.target.value)}
-                    placeholder="Why remember it?"
-                  />
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <Btn
-                      color={P.pine}
-                      small
-                      onClick={() => {
-                        if (!mTitle.trim()) return;
-                        set("memorySpots", [
-                          ...(form.memorySpots || []),
-                          { title: mTitle, note: mNote },
-                        ]);
-                        setMTitle("");
-                        setMNote("");
-                        setShowM(false);
-                      }}
-                    >
-                      Save Spot
-                    </Btn>
-                    <Btn
-                      outline
-                      color={P.muted}
-                      small
-                      onClick={() => setShowM(false)}
-                    >
-                      Cancel
-                    </Btn>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowM(true)}
-                  style={{
-                    width: "100%",
-                    background: "transparent",
-                    border: `1.5px dashed ${P.border}`,
-                    borderRadius: 10,
-                    color: P.muted,
-                    padding: 9,
-                    fontSize: 13,
-                    fontFamily: "'Lora',Georgia,serif",
-                    cursor: "pointer",
-                    marginBottom: 12,
-                  }}
-                >
-                  + Remember a Spot
-                </button>
-              )}
-              <SLabel>Trip Photos</SLabel>
-              <PhotoUploader
-                photos={form.photos || []}
-                onChange={(fn) =>
-                  set(
-                    "photos",
-                    typeof fn === "function" ? fn(form.photos || []) : fn
-                  )
-                }
-              />
-              <SLabel>⭐ Wishlist Sites for Next Time</SLabel>
-              {form.wishlist?.map((w, i) => (
-                <div
-                  key={i}
-                  style={{
-                    background: "#FFF8ED",
-                    border: `1px solid ${P.amber}44`,
-                    borderRadius: 8,
-                    padding: "8px 12px",
-                    marginBottom: 7,
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div>
-                    <span style={{ fontWeight: 700, color: P.forest }}>
-                      Site #{w.site}
-                    </span>
-                    {w.note && (
-                      <div
-                        style={{ fontSize: 12, color: P.muted, marginTop: 2 }}
-                      >
-                        {w.note}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() =>
-                      set(
-                        "wishlist",
-                        form.wishlist.filter((_, j) => j !== i)
-                      )
-                    }
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: P.red,
-                      fontSize: 18,
-                      cursor: "pointer",
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              {showW ? (
-                <div
-                  style={{
-                    background: "#FFF8ED",
-                    border: `1.5px solid ${P.amber}55`,
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <SLabel mt={0}>Site Number</SLabel>
-                  <Inp
-                    value={wSite}
-                    onChange={(e) => setWSite(e.target.value)}
-                    placeholder="e.g. 78"
-                  />
-                  <SLabel>Why this site?</SLabel>
-                  <Inp
-                    value={wNote}
-                    onChange={(e) => setWNote(e.target.value)}
-                    placeholder="e.g. More shade, near the creek"
-                  />
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <Btn
-                      color={P.amber}
-                      small
-                      onClick={() => {
-                        if (!wSite.trim()) return;
-                        set("wishlist", [
-                          ...(form.wishlist || []),
-                          { site: wSite, note: wNote },
-                        ]);
-                        setWSite("");
-                        setWNote("");
-                        setShowW(false);
-                      }}
-                    >
-                      Save
-                    </Btn>
-                    <Btn
-                      outline
-                      color={P.muted}
-                      small
-                      onClick={() => setShowW(false)}
-                    >
-                      Cancel
-                    </Btn>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowW(true)}
-                  style={{
-                    width: "100%",
-                    background: "transparent",
-                    border: `1.5px dashed ${P.border}`,
-                    borderRadius: 10,
-                    color: P.muted,
-                    padding: 9,
-                    fontSize: 13,
-                    fontFamily: "'Lora',Georgia,serif",
-                    cursor: "pointer",
-                    marginBottom: 14,
-                  }}
-                >
-                  + Add Wishlist Site
-                </button>
-              )}
-            </>
-          )}
-          {etab === "site" && <SiteDetailsTab form={form} set={set} />}
-          {etab === "fishing" && <FishingLogTab form={form} set={set} />}
-          {etab === "packing" && (
-            <>
-              {!form.packingList?.length ? (
-                <div style={{ textAlign: "center", padding: "20px 10px" }}>
-                  <div style={{ fontSize: 36, marginBottom: 10 }}>🎒</div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      color: P.muted,
-                      lineHeight: 1.7,
-                      marginBottom: 14,
-                    }}
-                  >
-                    Generate a packing list based on your trip activities.
-                  </div>
-                  <SLabel mt={0}>Trip Activities</SLabel>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 6,
-                      marginBottom: 16,
-                    }}
-                  >
-                    {[
-                      "Fishing",
-                      "Hiking",
-                      "Swimming",
-                      "Kayaking",
-                      "Rock Climbing",
-                      "Stargazing",
-                      "Kids",
-                      "Beach",
-                      "Cold Weather",
-                      "Long Drive",
-                    ].map((a) => {
-                      const sel = (form.activities || []).includes(a);
-                      return (
-                        <button
-                          key={a}
-                          onClick={() =>
-                            set(
-                              "activities",
-                              sel
-                                ? (form.activities || []).filter((x) => x !== a)
-                                : [...(form.activities || []), a]
-                            )
-                          }
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: 20,
-                            border: `1.5px solid ${sel ? P.pine : P.border}`,
-                            background: sel ? P.pine + "22" : "transparent",
-                            color: sel ? P.pine : P.muted,
-                            fontFamily: "'Lora',Georgia,serif",
-                            fontSize: 13,
-                            cursor: "pointer",
-                            fontWeight: sel ? 700 : 400,
-                          }}
-                        >
-                          {a}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <Btn color={P.pine} onClick={genPack}>
-                    Generate Packing List
-                  </Btn>
-                </div>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <div style={{ fontSize: 13, color: P.muted }}>
-                      {form.packingList.filter((i) => i.checked).length}/
-                      {form.packingList.length} packed
-                    </div>
-                    <Btn
-                      small
-                      outline
-                      color={P.muted}
-                      onClick={() => set("packingList", [])}
-                    >
-                      Reset
-                    </Btn>
-                  </div>
-                  <div
-                    style={{
-                      height: 5,
-                      background: P.cream,
-                      borderRadius: 4,
-                      marginBottom: 12,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        background: P.pine,
-                        borderRadius: 4,
-                        width: `${
-                          form.packingList.length
-                            ? (form.packingList.filter((i) => i.checked)
-                                .length /
-                                form.packingList.length) *
-                              100
-                            : 0
-                        }%`,
-                        transition: "width .3s",
-                      }}
-                    />
-                  </div>
-                  {form.packingList.map((item) => (
-                    <div
-                      key={item.id}
-                      onClick={() => togglePack(item.id)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "9px 10px",
-                        marginBottom: 4,
-                        borderRadius: 9,
-                        background: item.checked
-                          ? P.pine + "12"
-                          : "transparent",
-                        cursor: "pointer",
-                        border: `1px solid ${
-                          item.checked ? P.pine + "33" : P.border
-                        }`,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: 6,
-                          border: `2px solid ${
-                            item.checked ? P.pine : P.border
-                          }`,
-                          background: item.checked ? P.pine : "transparent",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          color: "#fff",
-                          fontSize: 12,
-                        }}
-                      >
-                        {item.checked && "✓"}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: 14,
-                          color: item.checked ? P.muted : P.text,
-                          textDecoration: item.checked
-                            ? "line-through"
-                            : "none",
-                        }}
-                      >
-                        {item.item}
-                      </span>
-                    </div>
-                  ))}
-                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                    <input
-                      value={newItem}
-                      onChange={(e) => setNewItem(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && newItem.trim()) {
-                          set("packingList", [
-                            ...form.packingList,
-                            {
-                              id: Math.random().toString(36).slice(2),
-                              item: newItem,
-                              checked: false,
-                            },
-                          ]);
-                          setNewItem("");
-                        }
-                      }}
-                      placeholder="Add custom item..."
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        background: "#fff",
-                        border: `1.5px solid ${P.border}`,
-                        borderRadius: 9,
-                        fontSize: 13,
-                        fontFamily: "'Lora',Georgia,serif",
-                        outline: "none",
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        if (newItem.trim()) {
-                          set("packingList", [
-                            ...form.packingList,
-                            {
-                              id: Math.random().toString(36).slice(2),
-                              item: newItem,
-                              checked: false,
-                            },
-                          ]);
-                          setNewItem("");
-                        }
-                      }}
-                      style={{
-                        background: P.pine,
-                        border: "none",
-                        color: "#fff",
-                        borderRadius: 9,
-                        padding: "8px 14px",
-                        fontFamily: "'Lora',Georgia,serif",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
-                    >
-                      +
-                    </button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <Btn outline color={P.muted} onClick={onCancel} sx={{ flex: 1 }}>
-              Cancel
-            </Btn>
-            <Btn color={P.forest} onClick={() => onSave(form)} sx={{ flex: 2 }}>
-              Save to Journal
-            </Btn>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ── Share Modal ───────────────────────────────────────────
 const ShareModal = ({ entry, onClose }) => {
@@ -4190,7 +3354,7 @@ entries.forEach((e) => {
         const ep = profiles.filter((p) => entry.who?.includes(p.id));
         const sd = entry.siteDetails || {};
         const fishLog = entry.fishingLog || [];
-        const fishCount = fishLog.reduce((s, f) => s + (+f.count || 1), 0);
+        const fishCount = fishLog.reduce((s, f) => s + Math.max(0, Number(f.count) || 0), 0);
         const sdTags = [
           sd.toiletType,
           sd.waterType,
@@ -4209,30 +3373,38 @@ entries.forEach((e) => {
                 alignItems: "flex-start",
               }}
             >
-              {entry.photos?.[0]?.url ? (
-  <img
-    src={entry.photos[0].url}
-    alt=""
-    style={{
-      width: 54,
-      height: 54,
-      objectFit: "cover",
-      borderRadius: 12,
-    }}
-  />
-) : (
-  <span style={{ fontSize: 32 }}>{cover.emoji}</span>
-)}
+              {tripCoverSrc(entry) ? (
+                <img
+                  src={tripCoverSrc(entry)}
+                  alt=""
+                  loading="lazy"
+                  style={{
+                    width: 58,
+                    height: 58,
+                    objectFit: "cover",
+                    borderRadius: 13,
+                    border: "2px solid rgba(255,255,255,0.72)",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
+                    background: "rgba(255,255,255,0.18)",
+                    display: "block",
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: 32 }}>{cover.emoji}</span>
+              )}
               <div style={{ flex: 1 }}>
                 <div
                   style={{ fontSize: 15, fontWeight: 700, color: "#F4EFE6" }}
                 >
                   {entry.campgroundName}
                 </div>
-                <div style={{ fontSize: 11, color: "#ffffff99", marginTop: 1 }}>
+                <div style={{ fontSize: 12, marginTop: 1, ...readableOnCover }}>
                   {entry.location}
                 </div>
-                <div style={{ fontSize: 11, color: "#ffffff99", marginTop: 1 }}>
+                <div style={{ fontSize: 12, marginTop: 1, ...readableOnCover }}>
                   {entry.startDate &&
                     (entry.endDate
                       ? `🗓 ${niceDate(entry.startDate)} → ${niceDate(
@@ -4251,34 +3423,21 @@ entries.forEach((e) => {
                   }}
                 >
                   {entry.rating > 0 && <Stars n={entry.rating} size={13} />}
-                  {entry.returnWorthy === true && (
-                    <Tag label="✅ Return" color={P.pine} small />
-                  )}
-                  {entry.returnWorthy === false && (
-                    <Tag label="❌ Skip" color={P.red} small />
-                  )}
-                  {entry.weather && (
-                    <Tag label={entry.weather} color={P.water} small />
-                  )}
+                  {entry.returnWorthy === true && <CoverPill label="✅ Return" color="#7EE0A0" />}
+                  {entry.returnWorthy === false && <CoverPill label="❌ Skip" color="#FF9B9B" />}
+                  {entry.weather && <CoverPill label={entry.weather} color="#8DD7FF" />}
                   {entry.totalCost && (
-                    <Tag
+                    <CoverPill
                       label={`$${(+entry.totalCost).toLocaleString()}`}
-                      color={P.gold}
-                      small
+                      color="#FFD36A"
                     />
                   )}
                   {entry.mileage && (
-                    <Tag
-                      label={`🚗 ${entry.mileage} mi`}
-                      color={P.earth}
-                      small
-                    />
+                    <CoverPill label={`🚗 ${entry.mileage} mi`} color="#F5C28A" />
                   )}
-                  {entry.gasCost && (
-                    <Tag label={`⛽ $${entry.gasCost}`} color={P.gold} small />
-                  )}
+                  {entry.gasCost && <CoverPill label={`⛽ $${entry.gasCost}`} color="#FFD36A" />}
                   {entry.privacy && (
-                    <Tag
+                    <CoverPill
                       label={
                         entry.privacy === "private"
                           ? "🔒 Private"
@@ -4286,13 +3445,10 @@ entries.forEach((e) => {
                           ? "👥 Friends"
                           : "🔗 Link"
                       }
-                      color={P.muted}
-                      small
+                      color="#D9C7A3"
                     />
                   )}
-                  {fishCount > 0 && (
-                    <Tag label={`🎣 ${fishCount} fish`} color={P.water} small />
-                  )}
+                  {fishCount > 0 && <CoverPill label={`🎣 ${fishCount} fish`} color="#8DD7FF" />}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -6587,10 +5743,12 @@ function FishingView({ entries, onAdd, onEdit, onGo }) {
       weather: e.weather,
     }))
   );
-  const fishCaught = allCatches.reduce((s, f) => s + (+f.count || 1), 0);
+  const fishCaught = allCatches.reduce((s, f) => s + Math.max(0, Number(f.count) || 0), 0);
   const speciesCounts = allCatches.reduce((acc, f) => {
+    const count = Math.max(0, Number(f.count) || 0);
+    if (count <= 0) return acc;
     const name = f.species || "Unknown";
-    acc[name] = (acc[name] || 0) + (+f.count || 1);
+    acc[name] = (acc[name] || 0) + count;
     return acc;
   }, {});
   const topSpecies = Object.entries(speciesCounts)
@@ -7336,7 +6494,7 @@ useEffect(() => {
   }
 
   const existingId = editing?.supabase_id || form.supabase_id;
-  const coverPhoto = form.photos?.[0]?.url || "";
+  const coverPhoto = tripCoverSrc(form) || "";
 
   const tripRow = {
     title: form.campgroundName || "Untitled Trip",
