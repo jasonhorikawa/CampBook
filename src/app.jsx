@@ -8154,6 +8154,7 @@ useEffect(() => {
           setBucketList={setBucketList}
           favorites={data.favorites || []}
           onSelectCamp={goDetail}
+          searchDB={searchDB}
           S={S}
           P={P}
           Btn={Btn}
