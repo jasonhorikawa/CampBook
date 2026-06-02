@@ -144,7 +144,7 @@ async function loadTripsFromSupabase() {
   location: t.location || trip.location || "",
   previewPhotos: previewPhotos,
   photos: allPhotos,
-  cover: previewSrc(previewPhotos[0]) || trip.cover_photo || "",
+  cover: previewSrc(t.cover) || previewSrc(previewPhotos[0]) || trip.cover_photo || "",
   photoCount: allPhotos.length,
 };
 });
@@ -172,9 +172,9 @@ async function loadFullTripFromSupabase(tripId) {
     campgroundName: t.campgroundName || t.campground || data.title || "",
     location: t.location || data.location || "",
     cover:
+  previewSrc(t.cover) ||
   previewSrc(t.photos?.[0]) ||
   previewSrc(t.previewPhotos?.[0]) ||
-  t.cover ||
   data.cover_photo ||
   "",
   };
@@ -245,7 +245,7 @@ const profilesById = Object.fromEntries(
       location: t.location || trip.location || "",
       previewPhotos: previewPhotos,
       photos: allPhotos,
-      cover: previewSrc(previewPhotos[0]) || trip.cover_photo || "",
+      cover: previewSrc(t.cover) || previewSrc(previewPhotos[0]) || trip.cover_photo || "",
       photoCount: allPhotos.length,
       userName:
         t.userName ||
@@ -1869,7 +1869,7 @@ function DatePicker({ startDate, endDate, onChange }) {
 }
 
 // ── Photo Uploader ────────────────────────────────────────
-const PhotoUploader = ({ photos = [], onChange, onOpenPhotoViewer }) => {
+const PhotoUploader = ({ photos = [], cover, onSetCover, onChange, onOpenPhotoViewer }) => {
   const [uploading, setUploading] = useState(false);
   const ref = useRef();
 
@@ -1967,6 +1967,29 @@ const PhotoUploader = ({ photos = [], onChange, onOpenPhotoViewer }) => {
                     display: "block",
                   }}
                 />
+                {onSetCover && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSetCover(fullSrc(p) || previewSrc(p));
+                    }}
+                    style={{
+                      position: "absolute",
+                      left: 4,
+                      bottom: 4,
+                      background: cover === (fullSrc(p) || previewSrc(p)) ? P.amber : "rgba(0,0,0,0.58)",
+                      border: "none",
+                      color: "#fff",
+                      borderRadius: 999,
+                      padding: "4px 7px",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {cover === (fullSrc(p) || previewSrc(p)) ? "Cover" : "Set cover"}
+                  </button>
+                )}
                 <button
                   onClick={() =>
                     onChange((prev) => (prev || []).filter((x) => x.id !== p.id))
@@ -2019,6 +2042,11 @@ const PhotoUploader = ({ photos = [], onChange, onOpenPhotoViewer }) => {
             }}
           >
             {photos.length} photo{photos.length !== 1 ? "s" : ""}
+            {onSetCover && (
+              <div style={{ marginTop: 4, fontSize: 11, opacity: 0.8 }}>
+                Tap Set cover to choose the trip cover photo.
+              </div>
+            )}
           </div>
         </>
       )}
@@ -2681,14 +2709,14 @@ function FishingLogTab({ form, set }) {
               marginBottom: 4,
             }}
           >
-            🏆 Best Fish
+            📍 Featured Fishing Spot
           </div>
           <div style={{ fontWeight: 800, color: P.forest, fontSize: 15 }}>
-            {trophy.species || "Fish"}
-            {trophy.size ? ` · ${trophy.size}` : ""}
+            {getSpotName(trophy)}
           </div>
           <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-            {getSpotName(trophy)}
+            {trophy.species || "Fish"}
+            {trophy.size ? ` · ${trophy.size}` : ""}
             {trophy.bait ? ` · ${trophy.bait}` : ""}
           </div>
         </div>
@@ -3637,6 +3665,8 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
               <SLabel>Trip Photos</SLabel>
               <PhotoUploader
                 photos={form.photos || []}
+                cover={form.cover || ""}
+                onSetCover={(url) => set("cover", url)}
                 onChange={(fn) =>
                   set(
                     "photos",
@@ -4263,10 +4293,10 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
     : 0;
   const cover = getTripCover(entry);
   const coverImage =
-    previewSrc(entry.photos?.[0]) ||
-    previewSrc(entry.previewPhotos?.[0]) ||
     previewSrc(entry.cover) ||
     previewSrc(entry.cover_photo) ||
+    previewSrc(entry.photos?.[0]) ||
+    previewSrc(entry.previewPhotos?.[0]) ||
     "";
 
   const Section = ({ title, children }) => {
@@ -4456,12 +4486,12 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
               <div>
                 {trophy && (
                   <div style={{ background: "#FFF8ED", border: `1px solid ${P.gold}55`, borderRadius: 11, padding: 10, marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: P.gold, textTransform: "uppercase", letterSpacing: "0.1em" }}>🏆 Best Fish</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: P.gold, textTransform: "uppercase", letterSpacing: "0.1em" }}>📍 Featured Fishing Spot</div>
                     <div style={{ marginTop: 4, fontWeight: 900, color: P.forest }}>
-                      {trophy.species || "Fish"}{trophy.size ? ` · ${trophy.size}` : ""}
+                      {getSpotName(trophy)}
                     </div>
                     <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
-                      {getSpotName(trophy)}{trophy.bait ? ` · ${trophy.bait}` : ""}
+                      {trophy.species || "Fish"}{trophy.size ? ` · ${trophy.size}` : ""}{trophy.bait ? ` · ${trophy.bait}` : ""}
                     </div>
                   </div>
                 )}
@@ -4639,8 +4669,9 @@ const [campSearchLoading, setCampSearchLoading] = useState(false);
 
 const latestPhotoByCamp = {};
 entries.forEach((e) => {
-  if (e.photos?.[0]?.url) {
-    latestPhotoByCamp[e.campgroundName] = e.photos[0].url;
+  const latestCover = previewSrc(e.cover) || previewSrc(e.photos?.[0]);
+  if (latestCover) {
+    latestPhotoByCamp[e.campgroundName] = latestCover;
   }
 });
           return (
@@ -4769,10 +4800,10 @@ entries.forEach((e) => {
         ].filter(Boolean);
         const cover = getTripCover(entry);
         const coverImage =
-          previewSrc(entry.photos?.[0]) ||
-          previewSrc(entry.previewPhotos?.[0]) ||
           previewSrc(entry.cover) ||
           previewSrc(entry.cover_photo) ||
+          previewSrc(entry.photos?.[0]) ||
+          previewSrc(entry.previewPhotos?.[0]) ||
           "";
         return (
           <div
@@ -4997,19 +5028,20 @@ entries.forEach((e) => {
                   >
                     🎣 Fishing Log
                   </div>
-                  {fishLog.slice(0, 3).map((f) => (
-                    <div key={f.id} style={{ fontSize: 13, marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, color: P.forest }}>
-                        {Math.max(0, Number(f.count) || 0)}× {f.species}
-                      </span>
-                      {f.bait && (
-                        <span style={{ color: P.muted }}> — {f.bait}</span>
-                      )}
-                      {f.spot && (
-                        <span style={{ color: P.muted }}> · {f.spot}</span>
-                      )}
-                    </div>
-                  ))}
+                  {fishLog.slice(0, 3).map((f) => {
+                    const spotName = f.spotName || f.spot || f.location || "Fishing Spot";
+                    return (
+                      <div key={f.id} style={{ fontSize: 13, marginBottom: 6 }}>
+                        <div style={{ fontWeight: 800, color: P.forest }}>
+                          📍 {spotName}
+                        </div>
+                        <div style={{ color: P.muted, marginTop: 1 }}>
+                          {Math.max(0, Number(f.count) || 0)}× {f.species || "Fish"}
+                          {f.bait ? ` — ${f.bait}` : ""}
+                        </div>
+                      </div>
+                    );
+                  })}
                   {fishLog.length > 3 && (
                     <div style={{ fontSize: 11, color: P.muted, marginTop: 4 }}>
                       +{fishLog.length - 3} more catch entries
@@ -7960,7 +7992,7 @@ useEffect(() => {
   }
 
   const existingId = editing?.supabase_id || form.supabase_id;
-  const coverPhoto = form.photos?.[0]?.url || "";
+  const coverPhoto = previewSrc(form.cover) || previewSrc(form.photos?.[0]) || "";
 
   const tripRow = {
     title: form.campgroundName || "Untitled Trip",
