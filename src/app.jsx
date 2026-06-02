@@ -486,6 +486,38 @@ return data.results || [];
   }
 }
 
+// =======================
+// Maps Helpers
+// =======================
+function getMapQuery(place = {}) {
+  const parts = [
+    place.name,
+    place.title,
+    place.spotName,
+    place.spot,
+    place.address,
+    place.location,
+    place.campgroundName,
+  ].filter(Boolean);
+
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function openAppleMaps(place) {
+  const query = getMapQuery(place);
+  if (!query) return alert("Add a place name or location first.");
+  window.open(`https://maps.apple.com/?q=${encodeURIComponent(query)}`, "_blank");
+}
+
+function openGoogleMaps(place) {
+  const query = getMapQuery(place);
+  if (!query) return alert("Add a place name or location first.");
+  window.open(
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+    "_blank"
+  );
+}
+
 // ── Storage ───────────────────────────────────────────────
 function loadData() {
   try {
@@ -1344,6 +1376,42 @@ const Btn = ({
     {children}
   </button>
 );
+
+const MapButtons = ({ place, compact = false }) => {
+  const query = getMapQuery(place);
+  if (!query) return null;
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        display: "flex",
+        gap: 8,
+        flexWrap: "wrap",
+        marginTop: compact ? 6 : 10,
+      }}
+    >
+      <Btn
+        small
+        outline
+        color={P.water}
+        onClick={() => openAppleMaps(place)}
+        sx={{ flex: compact ? "0 0 auto" : 1, padding: compact ? "5px 9px" : undefined }}
+      >
+         Maps
+      </Btn>
+      <Btn
+        small
+        outline
+        color={P.pine}
+        onClick={() => openGoogleMaps(place)}
+        sx={{ flex: compact ? "0 0 auto" : 1, padding: compact ? "5px 9px" : undefined }}
+      >
+        Google Maps
+      </Btn>
+    </div>
+  );
+};
 const SLabel = ({ children, mt }) => (
   <div
     style={{
@@ -2406,6 +2474,7 @@ function FishingLogTab({ form, set }) {
     time: "",
     spot: "",
     spotName: "",
+    spotLocation: "",
     water: "",
     notes: "",
     rating: 0,
@@ -2658,6 +2727,15 @@ function FishingLogTab({ form, set }) {
                 />
               </div>
 
+              <MapButtons
+                compact
+                place={{
+                  name: group.spot,
+                  location: group.catches[0]?.spotLocation || form.location,
+                  campgroundName: form.campgroundName,
+                }}
+              />
+
               {group.catches.map((f) => (
                 <div
                   key={f.id}
@@ -2766,6 +2844,11 @@ function FishingLogTab({ form, set }) {
         value={fish.spotName}
         onChange={(e) => setFish({ ...fish, spotName: e.target.value, spot: e.target.value })}
         placeholder="Fishing spot, e.g. Gull Lake, Rush Creek, South Shore"
+      />
+      <Inp
+        value={fish.spotLocation || ""}
+        onChange={(e) => setFish({ ...fish, spotLocation: e.target.value })}
+        placeholder="Map location, e.g. June Lake, CA or exact address/landmark"
       />
 
       <div style={{ position: "relative" }}>
@@ -4323,7 +4406,7 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
         </div>
 
         <div style={{ padding: 14 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <Btn color={P.pine} onClick={(e) => { e.stopPropagation(); onEdit(entry); }} sx={{ flex: 1 }}>
               ✏️ Edit Trip
             </Btn>
@@ -4331,6 +4414,14 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
               🗑 Delete
             </Btn>
           </div>
+
+          <MapButtons
+            place={{
+              name: entry.campgroundName,
+              location: entry.location,
+              address: entry.address,
+            }}
+          />
 
           {photos.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 4, marginBottom: 12 }}>
@@ -4381,6 +4472,14 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
                       <div style={{ fontWeight: 900, color: P.forest }}>📍 {group.spot}</div>
                       <Tag label={`${group.catches.reduce((s, f) => s + countFish(f), 0)} fish`} color={P.water} small />
                     </div>
+                    <MapButtons
+                      compact
+                      place={{
+                        name: group.spot,
+                        location: group.catches[0]?.spotLocation || entry.location,
+                        campgroundName: entry.campgroundName,
+                      }}
+                    />
                     {group.catches.map((f) => (
                       <div key={f.id} style={{ background: "rgba(255,255,255,0.75)", borderRadius: 10, padding: 9, marginTop: 6, border: `1px solid ${P.border}88` }}>
                         <div style={{ display: "flex", gap: 8 }}>
