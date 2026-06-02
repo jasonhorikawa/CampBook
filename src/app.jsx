@@ -4154,7 +4154,16 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
   const ep = profiles.filter((p) => entry.who?.includes(p.id));
   const photos = entry.photos || [];
   const sd = entry.siteDetails || {};
-  const fishLog = entry.fishingLog || [];
+  const rawFishLog =
+    entry.fishingLog ||
+    entry.fishingSpots ||
+    entry.fishLog ||
+    entry.fishingSessions ||
+    entry.fishingEntries ||
+    [];
+  const fishLog = Array.isArray(rawFishLog)
+    ? rawFishLog
+    : Object.values(rawFishLog || {}).flat();
   const countFish = (item) => Math.max(0, Number(item?.count) || 0);
   const getSpotName = (item) => item.spotName || item.spot || "Fishing Spot";
   const groupedSpots = Array.from(new Set(fishLog.map(getSpotName).filter(Boolean))).map((spot) => ({
@@ -4396,7 +4405,11 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
                   </div>
                 ))}
               </div>
-            ) : null}
+            ) : (
+              <div style={{ fontSize: 13, color: P.muted, lineHeight: 1.6 }}>
+                No fishing spots saved on this trip yet. Open Edit Trip → Fishing to add lakes, creeks, shore spots, bait, count, and notes.
+              </div>
+            )}
           </Section>
 
           <Section title="Site Details">
@@ -4637,7 +4650,16 @@ entries.forEach((e) => {
       {filtered.map((entry) => {
         const ep = profiles.filter((p) => entry.who?.includes(p.id));
         const sd = entry.siteDetails || {};
-        const fishLog = entry.fishingLog || [];
+        const rawFishLog =
+    entry.fishingLog ||
+    entry.fishingSpots ||
+    entry.fishLog ||
+    entry.fishingSessions ||
+    entry.fishingEntries ||
+    [];
+  const fishLog = Array.isArray(rawFishLog)
+    ? rawFishLog
+    : Object.values(rawFishLog || {}).flat();
         const fishCount = fishLog.reduce((s, f) => s + Math.max(0, Number(f.count) || 0), 0);
         const sdTags = [
           sd.toiletType,
