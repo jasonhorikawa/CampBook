@@ -472,14 +472,24 @@ async function searchCampgrounds(query) {
 
   try {
     const res = await fetch(
-  `/api/search-campgrounds?query=${encodeURIComponent(query)}`
-);
+      `/api/search-campgrounds?query=${encodeURIComponent(query)}`
+    );
 
-const data = await res.json();
-    
-console.log("DATA:", data);
+    const data = await res.json();
 
-return data.results || [];
+    console.log("GOOGLE PLACES DATA:", data);
+
+    return (data.results || []).map((place) => ({
+      id: place.place_id,
+      name: place.name || "Unknown campground",
+      location: place.formatted_address || "",
+      address: place.formatted_address || "",
+      rating: place.rating || 0,
+      reviews: place.user_ratings_total || 0,
+      lat: place.geometry?.location?.lat,
+      lng: place.geometry?.location?.lng,
+      emoji: "🏕️",
+    }));
   } catch (err) {
     console.error("Campground search failed", err);
     return [];
