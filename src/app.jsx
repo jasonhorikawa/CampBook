@@ -61,54 +61,53 @@ function fullSrc(photo) {
 // =======================
 // Auth + Supabase Helpers
 // =======================
-async function signUp() {
-  const email = prompt("Enter email");
-  if (!email) return;
+async function signUp(email, password) {
+  const cleanEmail = String(email || "").trim();
 
-  const password = prompt("Create password");
-  if (!password) return;
+  if (!cleanEmail || !password) {
+    return { error: { message: "Please enter an email and password." } };
+  }
 
   const { error } = await supabase.auth.signUp({
-    email,
+    email: cleanEmail,
     password,
   });
 
-  if (error) {
-    alert(error.message);
-  } else {
-    alert("Account created!");
-  }
+  return { error };
 }
-async function signIn() {
-  const email = prompt("Enter email");
-  if (!email) return;
 
-  const password = prompt("Enter password");
-  if (!password) return;
+async function signIn(email, password) {
+  const cleanEmail = String(email || "").trim();
+
+  if (!cleanEmail || !password) {
+    return { error: { message: "Please enter an email and password." } };
+  }
 
   const { error } = await supabase.auth.signInWithPassword({
-    email,
+    email: cleanEmail,
     password,
   });
 
-  if (error) {
-    alert(error.message);
-  } else {
-    alert("Signed in!");
-    const trips = await loadTripsFromSupabase();
+  if (error) return { error };
 
-if (trips.length > 0) {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      ...loadData(),
-      entries: trips,
-    })
-  );
+  const trips = await loadTripsFromSupabase();
+
+  if (trips.length > 0) {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...loadData(),
+        entries: trips,
+      })
+    );
+  }
+
+  return { error: null };
 }
 
-window.location.reload();
-  }
+async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  return { error };
 }
 async function loadTripsFromSupabase() {
   const {
@@ -468,7 +467,7 @@ const {
 // Campground Search
 // =======================
 async function searchCampgrounds(query) {
-  if (!query || query.length < 3) return [];
+  if (!query || query.length < 5) return [];
 
   try {
     const res = await fetch(
@@ -1386,6 +1385,218 @@ const Btn = ({
     {children}
   </button>
 );
+
+
+function AuthModal({ mode = "signin", onClose, onSuccess }) {
+  const isSignUp = mode === "signup";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setBusy(true);
+
+    const result = isSignUp
+      ? await signUp(email, password)
+      : await signIn(email, password);
+
+    setBusy(false);
+
+    if (result?.error) {
+      setErrorMsg(result.error.message || "Something went wrong.");
+      return;
+    }
+
+    if (isSignUp) {
+      alert("Account created! Check your email if Supabase asks you to confirm your account.");
+    }
+
+    onSuccess?.();
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.72)",
+        zIndex: 10000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 390,
+          background: P.card,
+          border: `1px solid ${P.border}`,
+          borderRadius: 20,
+          boxShadow: "0 18px 60px rgba(0,0,0,0.36)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            background: `linear-gradient(135deg,${P.forest},${P.pine})`,
+            color: "#F4EFE6",
+            padding: "18px 18px 16px",
+            position: "relative",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              border: "none",
+              background: "rgba(0,0,0,0.28)",
+              color: "#fff",
+              borderRadius: 999,
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontWeight: 800,
+            }}
+          >
+            ×
+          </button>
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              opacity: 0.75,
+              marginBottom: 5,
+            }}
+          >
+            CampBook Account
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 900 }}>
+            {isSignUp ? "Create your account" : "Welcome back"}
+          </div>
+          <div style={{ fontSize: 13, opacity: 0.82, marginTop: 6, lineHeight: 1.5 }}>
+            {isSignUp
+              ? "Save your trips, photos, fishing logs, and camp memories."
+              : "Sign in to sync your CampBook trips."}
+          </div>
+        </div>
+
+        <div style={{ padding: 18 }}>
+          <SLabel mt={0}>Email</SLabel>
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            style={{
+              width: "100%",
+              padding: "11px 12px",
+              background: "#fff",
+              border: `1.5px solid ${P.border}`,
+              borderRadius: 10,
+              fontSize: 15,
+              fontFamily: "'Lora',Georgia,serif",
+              color: P.text,
+              outline: "none",
+              marginBottom: 12,
+            }}
+          />
+
+          <SLabel>Password</SLabel>
+          <div style={{ position: "relative", marginBottom: 10 }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={isSignUp ? "Create a password" : "Enter your password"}
+              style={{
+                width: "100%",
+                padding: "11px 78px 11px 12px",
+                background: "#fff",
+                border: `1.5px solid ${P.border}`,
+                borderRadius: 10,
+                fontSize: 15,
+                fontFamily: "'Lora',Georgia,serif",
+                color: P.text,
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: P.cream,
+                color: P.forest,
+                borderRadius: 999,
+                padding: "5px 9px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {errorMsg && (
+            <div
+              style={{
+                background: P.red + "12",
+                border: `1px solid ${P.red}44`,
+                color: P.red,
+                borderRadius: 10,
+                padding: "9px 10px",
+                fontSize: 13,
+                marginBottom: 12,
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
+
+          <Btn full color={P.pine} onClick={undefined} sx={{ marginTop: 4 }}>
+            {busy ? "Please wait..." : isSignUp ? "Create Account" : "Log In"}
+          </Btn>
+
+          <button
+            type="button"
+            onClick={() => onSuccess?.(isSignUp ? "signin" : "signup")}
+            style={{
+              width: "100%",
+              border: "none",
+              background: "transparent",
+              color: P.muted,
+              fontFamily: "'Lora',Georgia,serif",
+              fontSize: 13,
+              marginTop: 12,
+              cursor: "pointer",
+            }}
+          >
+            {isSignUp ? "Already have an account? Log in" : "Need an account? Sign up"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
 
 const MapButtons = ({ place, compact = false }) => {
   const query = getMapQuery(place);
@@ -4547,7 +4758,7 @@ const niceDate = (s) => {
   return `${MONTHS[+m - 1].slice(0, 3)} ${+d}, ${y}`;
 };
 
-function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [], onOpenPhotos }) {
+function TripEntryDetailModal({ entry, onClose, onEdit, onRename, onDelete, profiles = [], onOpenPhotos }) {
   if (!entry) return null;
 
   const ep = profiles.filter((p) => entry.who?.includes(p.id));
@@ -4726,6 +4937,9 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
             <Btn color={P.pine} onClick={(e) => { e.stopPropagation(); onEdit(entry); }} sx={{ flex: 1 }}>
               ✏️ Edit Trip
             </Btn>
+            <Btn outline color={P.water} onClick={(e) => { e.stopPropagation(); onRename?.(entry); }} sx={{ flex: 1 }}>
+              Rename
+            </Btn>
             <Btn outline color={P.red} onClick={(e) => { e.stopPropagation(); onDelete(entry); }} sx={{ flex: 1 }}>
               🗑 Delete
             </Btn>
@@ -4864,7 +5078,7 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onDelete, profiles = [],
   );
 }
 
-const JournalView = ({ entries, onAdd, onEdit, onDelete, profiles }) => {
+const JournalView = ({ entries, onAdd, onEdit, onRename, onDelete, profiles }) => {
   const [filter, setFilter] = useState("all");
   const [shareEntry, setShareEntry] = useState(null);
   const [viewerPhotos, setViewerPhotos] = useState([]);
@@ -5500,6 +5714,9 @@ entries.forEach((e) => {
           onEdit={(entry) => {
             setDetailEntry(null);
             onEdit(entry);
+          }}
+          onRename={(entry) => {
+            onRename?.(entry);
           }}
           onDelete={(entry) => {
             setDetailEntry(null);
@@ -7762,7 +7979,7 @@ function FishingView({ entries, onAdd, onEdit, onGo }) {
   );
 }
 
-function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo }) {
+function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo, userEmail, onAuth, onLogout }) {
   const st = calcTripStats(entries);
   const last = entries[entries.length - 1];
   return (
@@ -7807,17 +8024,42 @@ function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo }) {
           Your private camping, fishing, family-memory, and secret-spot
           notebook.
         </div>
+        {userEmail && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 10,
+              padding: "5px 9px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.14)",
+              border: "1px solid rgba(255,255,255,0.22)",
+              fontSize: 11,
+              color: "#F4EFE6",
+            }}
+          >
+            👤 {userEmail}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
           <Btn small color={P.amber} onClick={saveTripToSupabase}>
             + Quick Add Trip
           </Btn>
-          <Btn small outline color="#F4EFE6" onClick={signUp}>
-  Sign Up
-</Btn>
-
-<Btn small outline color="#F4EFE6" onClick={signIn}>
-  Sign In
-</Btn>
+          {userEmail ? (
+            <Btn small outline color="#F4EFE6" onClick={onLogout}>
+              Logout
+            </Btn>
+          ) : (
+            <>
+              <Btn small outline color="#F4EFE6" onClick={() => onAuth("signup")}>
+                Sign Up
+              </Btn>
+              <Btn small outline color="#F4EFE6" onClick={() => onAuth("signin")}>
+                Log In
+              </Btn>
+            </>
+          )}
           <Btn small outline color="#F4EFE6" onClick={() => onGo("discover")}>
             Discover
           </Btn>
@@ -8017,6 +8259,8 @@ export default function CampBook() {
   const [camp, setCamp] = useState(null);
   const [editing, setEditing] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [authMode, setAuthMode] = useState(null);
+  const [userEmail, setUserEmail] = useState("");
 
  useEffect(() => {
   async function checkLogin() {
@@ -8024,7 +8268,12 @@ export default function CampBook() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) return;
+    if (!user) {
+      setUserEmail("");
+      return;
+    }
+
+    setUserEmail(user.email || "");
 
     const tripsPromise = loadTripsFromSupabase();
     const friendshipsPromise = loadFriendshipsFromSupabase();
@@ -8176,29 +8425,96 @@ useEffect(() => {
   const update = (id, patch) =>
     setEntries((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   const remove = async (entry) => {
-  const supabaseId = entry?.supabase_id;
-    
-    alert("Deleting Supabase ID: " + supabaseId);
+    const tripName = entry?.campgroundName || entry?.campground || "this trip";
+    const ok = window.confirm(
+      `Are you sure you want to delete "${tripName}"? This cannot be undone.`
+    );
 
-  if (supabaseId) {
-    const { error } = await supabase
-      .from("trips")
-      .delete()
-      .eq("id", supabaseId);
+    if (!ok) return;
+
+    const supabaseId = entry?.supabase_id;
+
+    if (supabaseId) {
+      const { error } = await supabase
+        .from("trips")
+        .delete()
+        .eq("id", supabaseId);
+
+      if (error) {
+        alert("Delete failed: " + error.message);
+        return;
+      }
+    }
+
+    setEntries((p) =>
+      p.filter((e) => {
+        if (supabaseId) return e.supabase_id !== supabaseId;
+        return e.id !== entry?.id;
+      })
+    );
+  };
+
+  const renameTrip = async (entry) => {
+    const currentName = entry?.campgroundName || entry?.campground || "";
+    const newName = window.prompt("Edit trip name", currentName);
+
+    if (!newName) return;
+
+    const cleanName = newName.trim();
+    if (!cleanName || cleanName === currentName) return;
+
+    const patch = {
+      campgroundName: cleanName,
+      campground: cleanName,
+    };
+
+    const supabaseId = entry?.supabase_id;
+
+    if (supabaseId) {
+      const updatedTripData = {
+        ...(entry || {}),
+        ...patch,
+      };
+
+      const { error } = await supabase
+        .from("trips")
+        .update({
+          title: cleanName,
+          trip_data: updatedTripData,
+        })
+        .eq("id", supabaseId);
+
+      if (error) {
+        alert("Rename failed: " + error.message);
+        return;
+      }
+    }
+
+    setEntries((p) =>
+      p.map((e) => {
+        if (supabaseId) {
+          return e.supabase_id === supabaseId ? { ...e, ...patch } : e;
+        }
+
+        return e.id === entry?.id ? { ...e, ...patch } : e;
+      })
+    );
+  };
+
+  const handleLogout = async () => {
+    const ok = window.confirm("Log out of CampBook?");
+    if (!ok) return;
+
+    const { error } = await signOut();
 
     if (error) {
-      alert("Delete failed: " + error.message);
+      alert("Log out failed: " + error.message);
       return;
     }
-  }
 
-  setEntries((p) =>
-    p.filter((e) => {
-      if (supabaseId) return e.supabase_id !== supabaseId;
-      return e.id !== entry?.id;
-    })
-  );
-};
+    setUserEmail("");
+    window.location.reload();
+  };
 
   const goDetail = (c) => {
     setCamp(c);
@@ -8435,6 +8751,9 @@ useEffect(() => {
           bucketList={data.bucketList || []}
           onAdd={goAdd}
           onGo={setTab}
+          userEmail={userEmail}
+          onAuth={setAuthMode}
+          onLogout={handleLogout}
         />
       )}
       {!sub && tab === "discover" && <DiscoverView onSelectCamp={goDetail} />}
@@ -8449,6 +8768,7 @@ useEffect(() => {
           entries={data.entries || []}
           onAdd={goAdd}
           onEdit={goEdit}
+          onRename={renameTrip}
           onDelete={remove}
           profiles={data.profiles || []}
         />
@@ -8511,6 +8831,21 @@ useEffect(() => {
       )}
       {!sub && tab === "crew" && (
         <CrewView profiles={data.profiles || []} setProfiles={setProfiles} />
+      )}
+      {authMode && (
+        <AuthModal
+          mode={authMode}
+          onClose={() => setAuthMode(null)}
+          onSuccess={(nextMode) => {
+            if (nextMode === "signin" || nextMode === "signup") {
+              setAuthMode(nextMode);
+              return;
+            }
+
+            setAuthMode(null);
+            window.location.reload();
+          }}
+        />
       )}
     </div>
   );
