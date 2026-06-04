@@ -3528,13 +3528,16 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
     }}
   >
     {campResults.map((camp) => (
-      <button
-        key={camp.FacilityID}
-        onClick={() => {
-          set("campgroundName", camp.FacilityName || "");
-          set("location", camp.FacilityAddress?.[0]?.AddressStateCode || "");
-          setCampResults([]);
-        }}
+  <button
+    key={camp.id}
+    onClick={() => {
+      set("campgroundName", camp.name || "");
+      set("location", camp.location || "");
+      set("googlePlaceId", camp.id || "");
+      set("lat", camp.lat || "");
+      set("lng", camp.lng || "");
+      setCampResults([]);
+    }}
         style={{
           width: "100%",
           padding: "10px 12px",
@@ -3547,10 +3550,10 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
         }}
       >
         <div style={{ fontWeight: 700, color: P.forest }}>
-          {camp.FacilityName}
+         🏕️ {camp.name}
         </div>
         <div style={{ fontSize: 12, color: P.muted }}>
-          {camp.FacilityTypeDescription || "Campground"}
+         {camp.location}
         </div>
       </button>
     ))}
