@@ -83,26 +83,21 @@ async function signIn(email, password) {
     return { error: { message: "Please enter an email and password." } };
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  // Long-term fix: authentication should only authenticate.
+  // Trip/friend loading happens in CampBook's auth-state effect after sign-in,
+  // so a slow Supabase trips query can never freeze the login modal.
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: cleanEmail,
     password,
   });
 
   if (error) return { error };
 
-  const trips = await loadTripsFromSupabase();
-
-  if (trips.length > 0) {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ...loadData(),
-        entries: trips,
-      })
-    );
-  }
-
-  return { error: null };
+  return {
+    error: null,
+    user: data?.user || null,
+    session: data?.session || null,
+  };
 }
 
 async function signOut() {
@@ -1397,30 +1392,56 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    setErrorMsg("");
-    setBusy(true);
 
-    const result = isSignUp
-      ? await signUp(email, password)
-      : await signIn(email, password);
+    if (busy) return;
 
-    setBusy(false);
+    const cleanEmail = String(email || "").trim();
 
-    if (result?.error) {
-      setErrorMsg(result.error.message || "Something went wrong.");
+    if (!cleanEmail || !password) {
+      setErrorMsg("Please enter an email and password.");
       return;
     }
 
-    if (isSignUp) {
-      alert("Account created! Check your email if Supabase asks you to confirm your account.");
+    if (isSignUp && password.length < 6) {
+      setErrorMsg("Password should be at least 6 characters.");
+      return;
     }
 
-    onSuccess?.();
+    setErrorMsg("");
+    setBusy(true);
+
+    try {
+      const result = isSignUp
+        ? await signUp(cleanEmail, password)
+        : await signIn(cleanEmail, password);
+
+      if (result?.error) {
+        setErrorMsg(result.error.message || "Something went wrong.");
+        return;
+      }
+
+      if (isSignUp) {
+        setErrorMsg("Account created. If Supabase asks for email confirmation, check your inbox before logging in.");
+        setBusy(false);
+        return;
+      }
+
+      // Close immediately after successful auth. CampBook's auth-state listener
+      // handles loading trips/friends in the background and then refreshes app state.
+      onSuccess?.();
+    } catch (err) {
+      console.error("Auth failed", err);
+      setErrorMsg(err?.message || "Login failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div
-      onClick={onClose}
+      onClick={() => {
+        if (!busy) onClose?.();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -1455,6 +1476,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
         >
           <button
             type="button"
+            disabled={busy}
             onClick={onClose}
             style={{
               position: "absolute",
@@ -1465,8 +1487,9 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               color: "#fff",
               borderRadius: 999,
               padding: "6px 10px",
-              cursor: "pointer",
+              cursor: busy ? "not-allowed" : "pointer",
               fontWeight: 800,
+              opacity: busy ? 0.55 : 1,
             }}
           >
             ×
@@ -1498,6 +1521,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
             type="email"
             autoComplete="email"
             value={email}
+            disabled={busy}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             style={{
@@ -1511,6 +1535,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               color: P.text,
               outline: "none",
               marginBottom: 12,
+              opacity: busy ? 0.75 : 1,
             }}
           />
 
@@ -1520,6 +1545,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               type={showPassword ? "text" : "password"}
               autoComplete={isSignUp ? "new-password" : "current-password"}
               value={password}
+              disabled={busy}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={isSignUp ? "Create a password" : "Enter your password"}
               style={{
@@ -1532,10 +1558,12 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
                 fontFamily: "'Lora',Georgia,serif",
                 color: P.text,
                 outline: "none",
+                opacity: busy ? 0.75 : 1,
               }}
             />
             <button
               type="button"
+              disabled={busy}
               onClick={() => setShowPassword((v) => !v)}
               style={{
                 position: "absolute",
@@ -1549,7 +1577,8 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
                 padding: "5px 9px",
                 fontSize: 12,
                 fontWeight: 800,
-                cursor: "pointer",
+                cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.55 : 1,
               }}
             >
               {showPassword ? "Hide" : "Show"}
@@ -1559,25 +1588,44 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
           {errorMsg && (
             <div
               style={{
-                background: P.red + "12",
-                border: `1px solid ${P.red}44`,
-                color: P.red,
+                background: isSignUp && errorMsg.startsWith("Account created") ? P.pine + "14" : P.red + "12",
+                border: `1px solid ${isSignUp && errorMsg.startsWith("Account created") ? P.pine + "55" : P.red + "44"}`,
+                color: isSignUp && errorMsg.startsWith("Account created") ? P.forest : P.red,
                 borderRadius: 10,
                 padding: "9px 10px",
                 fontSize: 13,
                 marginBottom: 12,
+                lineHeight: 1.45,
               }}
             >
               {errorMsg}
             </div>
           )}
 
-          <Btn full color={P.pine} onClick={undefined} sx={{ marginTop: 4 }}>
-            {busy ? "Please wait..." : isSignUp ? "Create Account" : "Log In"}
-          </Btn>
+          <button
+            type="submit"
+            disabled={busy}
+            style={{
+              width: "100%",
+              background: busy ? P.muted : P.pine,
+              color: "#F4EFE6",
+              border: "none",
+              borderRadius: 10,
+              padding: "11px 18px",
+              fontSize: 14,
+              fontFamily: "'Lora',Georgia,serif",
+              fontWeight: 800,
+              cursor: busy ? "not-allowed" : "pointer",
+              marginTop: 4,
+              opacity: busy ? 0.75 : 1,
+            }}
+          >
+            {busy ? "Signing in..." : isSignUp ? "Create Account" : "Log In"}
+          </button>
 
           <button
             type="button"
+            disabled={busy}
             onClick={() => onSuccess?.(isSignUp ? "signin" : "signup")}
             style={{
               width: "100%",
@@ -1587,7 +1635,8 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               fontFamily: "'Lora',Georgia,serif",
               fontSize: 13,
               marginTop: 12,
-              cursor: "pointer",
+              cursor: busy ? "not-allowed" : "pointer",
+              opacity: busy ? 0.55 : 1,
             }}
           >
             {isSignUp ? "Already have an account? Log in" : "Need an account? Sign up"}
@@ -8843,7 +8892,6 @@ useEffect(() => {
             }
 
             setAuthMode(null);
-            window.location.reload();
           }}
         />
       )}
