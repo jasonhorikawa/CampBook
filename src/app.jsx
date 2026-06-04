@@ -320,7 +320,7 @@ async function sendFriendRequest(receiverId) {
   }
 }
 async function searchProfiles(query) {
-  if (!query || query.length < 3) return [];
+  if (!query || query.length < 5) return [];
 
   const {
     data: { user },
