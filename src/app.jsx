@@ -3111,6 +3111,276 @@ function FishingLogTab({ form, set }) {
 }
 
 // ── Edit Entry ────────────────────────────────────────────
+
+
+function createDefaultTripPlan() {
+  return {
+    overview: {
+      site: "",
+      group: "",
+      arrival: "",
+      departure: "",
+      sharedAlbum: "",
+      notes: "",
+    },
+    itinerary: [],
+    meals: [],
+    sharedGear: [],
+    personalGear: [],
+    tasks: [],
+  };
+}
+
+function ensureTripPlan(plan = {}) {
+  const base = createDefaultTripPlan();
+  return {
+    ...base,
+    ...plan,
+    overview: { ...base.overview, ...(plan.overview || {}) },
+    itinerary: Array.isArray(plan.itinerary) ? plan.itinerary : [],
+    meals: Array.isArray(plan.meals) ? plan.meals : [],
+    sharedGear: Array.isArray(plan.sharedGear) ? plan.sharedGear : [],
+    personalGear: Array.isArray(plan.personalGear) ? plan.personalGear : [],
+    tasks: Array.isArray(plan.tasks) ? plan.tasks : [],
+  };
+}
+
+function PlannerInput({ value, onChange, placeholder, type = "text" }) {
+  return (
+    <input
+      type={type}
+      value={value || ""}
+      onChange={onChange}
+      placeholder={placeholder}
+      style={{
+        width: "100%",
+        padding: "9px 10px",
+        background: "#fff",
+        border: `1.5px solid ${P.border}`,
+        borderRadius: 10,
+        fontSize: 13,
+        fontFamily: "'Lora',Georgia,serif",
+        color: P.text,
+        outline: "none",
+        boxSizing: "border-box",
+      }}
+    />
+  );
+}
+
+function PlannerTextArea({ value, onChange, placeholder, minHeight = 70 }) {
+  return (
+    <textarea
+      value={value || ""}
+      onChange={onChange}
+      placeholder={placeholder}
+      style={{
+        width: "100%",
+        padding: "9px 10px",
+        background: "#fff",
+        border: `1.5px solid ${P.border}`,
+        borderRadius: 10,
+        fontSize: 13,
+        fontFamily: "'Lora',Georgia,serif",
+        color: P.text,
+        outline: "none",
+        boxSizing: "border-box",
+        resize: "vertical",
+        minHeight,
+      }}
+    />
+  );
+}
+
+function PlannerCard({ title, subtitle, children }) {
+  return (
+    <div
+      style={{
+        background: P.cream,
+        border: `1px solid ${P.border}`,
+        borderRadius: 14,
+        padding: 12,
+        marginBottom: 12,
+      }}
+    >
+      <div style={{ fontWeight: 900, color: P.forest, fontSize: 15 }}>{title}</div>
+      {subtitle && (
+        <div style={{ fontSize: 12, color: P.muted, lineHeight: 1.5, marginTop: 3, marginBottom: 10 }}>
+          {subtitle}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function TripPlanTab({ form, set, profiles = [] }) {
+  const plan = ensureTripPlan(form.tripPlan);
+  const updatePlan = (patch) => set("tripPlan", ensureTripPlan({ ...plan, ...patch }));
+  const updateOverview = (key, value) =>
+    updatePlan({ overview: { ...plan.overview, [key]: value } });
+  const addItem = (key, item) =>
+    updatePlan({
+      [key]: [...(plan[key] || []), { id: Math.random().toString(36).slice(2), ...item }],
+    });
+  const updateItem = (key, id, patch) =>
+    updatePlan({
+      [key]: (plan[key] || []).map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    });
+  const removeItem = (key, id) =>
+    updatePlan({ [key]: (plan[key] || []).filter((item) => item.id !== id) });
+  const crewNames = (form.who || [])
+    .map((id) => profiles.find((p) => p.id === id)?.name)
+    .filter(Boolean)
+    .join(", ");
+  const peopleHint = crewNames || "Jason, Mike, Sarah, kids";
+
+  const MiniRemove = ({ onClick }) => (
+    <button
+      onClick={onClick}
+      style={{
+        background: "transparent",
+        border: "none",
+        color: P.red,
+        fontSize: 18,
+        cursor: "pointer",
+        padding: 0,
+      }}
+    >
+      ×
+    </button>
+  );
+
+  return (
+    <div>
+      <PlannerCard
+        title="🧭 Trip Overview"
+        subtitle="Use this before the trip: where you are staying, who is going, arrival notes, and your shared album."
+      >
+        <div style={{ display: "grid", gap: 8 }}>
+          <PlannerInput
+            value={plan.overview.site || form.siteNumber || ""}
+            onChange={(e) => updateOverview("site", e.target.value)}
+            placeholder="Site # / loop / campsite notes"
+          />
+          <PlannerInput
+            value={plan.overview.group || ""}
+            onChange={(e) => updateOverview("group", e.target.value)}
+            placeholder={`Group members, e.g. ${peopleHint}`}
+          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <PlannerInput
+              value={plan.overview.arrival || ""}
+              onChange={(e) => updateOverview("arrival", e.target.value)}
+              placeholder="Arrival time"
+            />
+            <PlannerInput
+              value={plan.overview.departure || ""}
+              onChange={(e) => updateOverview("departure", e.target.value)}
+              placeholder="Pack up / checkout"
+            />
+          </div>
+          <PlannerInput
+            value={plan.overview.sharedAlbum || ""}
+            onChange={(e) => updateOverview("sharedAlbum", e.target.value)}
+            placeholder="Shared photo album link or name"
+          />
+          <PlannerTextArea
+            value={plan.overview.notes || ""}
+            onChange={(e) => updateOverview("notes", e.target.value)}
+            placeholder="Important plan notes, gate code, reservation holder, quiet hours, etc."
+          />
+        </div>
+      </PlannerCard>
+
+      <PlannerCard title="🗓️ Day-by-Day Itinerary" subtitle="Add plans like fishing, hikes, meals, relaxing at camp, or kid activities.">
+        {(plan.itinerary || []).map((item) => (
+          <div key={item.id} style={{ background: "#fff", border: `1px solid ${P.border}`, borderRadius: 12, padding: 10, marginBottom: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 7, marginBottom: 7 }}>
+              <PlannerInput value={item.day || ""} onChange={(e) => updateItem("itinerary", item.id, { day: e.target.value })} placeholder="Day 1" />
+              <PlannerInput value={item.time || ""} onChange={(e) => updateItem("itinerary", item.id, { time: e.target.value })} placeholder="8:00 AM" />
+              <MiniRemove onClick={() => removeItem("itinerary", item.id)} />
+            </div>
+            <PlannerInput value={item.activity || ""} onChange={(e) => updateItem("itinerary", item.id, { activity: e.target.value })} placeholder="Activity, e.g. Fish June Lake" />
+            <div style={{ height: 7 }} />
+            <PlannerInput value={item.location || ""} onChange={(e) => updateItem("itinerary", item.id, { location: e.target.value })} placeholder="Location / meeting spot" />
+          </div>
+        ))}
+        <Btn full outline color={P.pine} onClick={() => addItem("itinerary", { day: "", time: "", activity: "", location: "" })}>
+          + Add Itinerary Item
+        </Btn>
+      </PlannerCard>
+
+      <PlannerCard title="🍳 Meals & Ingredients" subtitle="Plan breakfasts, lunches, dinners, who cooks, and what ingredients are needed.">
+        {(plan.meals || []).map((meal) => (
+          <div key={meal.id} style={{ background: "#fff", border: `1px solid ${P.border}`, borderRadius: 12, padding: 10, marginBottom: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 7, marginBottom: 7 }}>
+              <PlannerInput value={meal.day || ""} onChange={(e) => updateItem("meals", meal.id, { day: e.target.value })} placeholder="Day 1" />
+              <PlannerInput value={meal.mealType || ""} onChange={(e) => updateItem("meals", meal.id, { mealType: e.target.value })} placeholder="Breakfast" />
+              <MiniRemove onClick={() => removeItem("meals", meal.id)} />
+            </div>
+            <PlannerInput value={meal.name || ""} onChange={(e) => updateItem("meals", meal.id, { name: e.target.value })} placeholder="Meal, e.g. eggs and bacon" />
+            <div style={{ height: 7 }} />
+            <PlannerInput value={meal.cook || ""} onChange={(e) => updateItem("meals", meal.id, { cook: e.target.value })} placeholder="Assigned cook / group" />
+            <div style={{ height: 7 }} />
+            <PlannerTextArea value={meal.ingredients || ""} onChange={(e) => updateItem("meals", meal.id, { ingredients: e.target.value })} placeholder="Ingredients / groceries needed" minHeight={58} />
+          </div>
+        ))}
+        <Btn full outline color={P.amber} onClick={() => addItem("meals", { day: "", mealType: "", name: "", cook: "", ingredients: "" })}>
+          + Add Meal
+        </Btn>
+      </PlannerCard>
+
+      <PlannerCard title="🎒 Shared Gear" subtitle="Gear the group shares: tent, stove, firewood, cooler, Dutch oven, canopy, etc.">
+        {(plan.sharedGear || []).map((gear) => (
+          <div key={gear.id} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr auto", gap: 7, marginBottom: 8 }}>
+            <PlannerInput value={gear.item || ""} onChange={(e) => updateItem("sharedGear", gear.id, { item: e.target.value })} placeholder="Item" />
+            <PlannerInput value={gear.owner || ""} onChange={(e) => updateItem("sharedGear", gear.id, { owner: e.target.value })} placeholder="Who brings it?" />
+            <MiniRemove onClick={() => removeItem("sharedGear", gear.id)} />
+          </div>
+        ))}
+        <Btn full outline color={P.water} onClick={() => addItem("sharedGear", { item: "", owner: "" })}>
+          + Add Shared Gear
+        </Btn>
+      </PlannerCard>
+
+      <PlannerCard title="🧢 Personal Gear Reminders" subtitle="Personal items that everyone should remember, separate from shared gear.">
+        {(plan.personalGear || []).map((gear) => (
+          <div key={gear.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 7, marginBottom: 8 }}>
+            <PlannerInput value={gear.item || ""} onChange={(e) => updateItem("personalGear", gear.id, { item: e.target.value })} placeholder="Personal item, e.g. warm layers" />
+            <MiniRemove onClick={() => removeItem("personalGear", gear.id)} />
+          </div>
+        ))}
+        <Btn full outline color={P.pine} onClick={() => addItem("personalGear", { item: "" })}>
+          + Add Personal Reminder
+        </Btn>
+      </PlannerCard>
+
+      <PlannerCard title="✅ Crew Tasks" subtitle="Assign jobs before the trip: firewood, groceries, bait, ice, dishes, trash, tent setup, etc.">
+        {(plan.tasks || []).map((task) => (
+          <div key={task.id} style={{ background: "#fff", border: `1px solid ${P.border}`, borderRadius: 12, padding: 10, marginBottom: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 7 }}>
+              <PlannerInput value={task.task || ""} onChange={(e) => updateItem("tasks", task.id, { task: e.target.value })} placeholder="Task" />
+              <PlannerInput value={task.owner || ""} onChange={(e) => updateItem("tasks", task.id, { owner: e.target.value })} placeholder="Assigned to" />
+              <MiniRemove onClick={() => removeItem("tasks", task.id)} />
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <Check label="Done" checked={!!task.done} onChange={() => updateItem("tasks", task.id, { done: !task.done })} />
+            </div>
+          </div>
+        ))}
+        <Btn full outline color={P.forest} onClick={() => addItem("tasks", { task: "", owner: "", done: false })}>
+          + Add Crew Task
+        </Btn>
+      </PlannerCard>
+
+      <div style={{ fontSize: 12, color: P.muted, lineHeight: 1.6, marginBottom: 4 }}>
+        Tip: keep actual catches in the Fishing tab. Use this Plan tab for what your group intends to do before the trip.
+      </div>
+    </div>
+  );
+}
+
 const WEATHER = [
   "☀️ Hot & Sunny",
   "🌤 Warm & Clear",
@@ -3149,6 +3419,7 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
         privacy: "private",
         memorySpots: [],
         tripCover: "auto",
+        tripPlan: createDefaultTripPlan(),
       }
   );
   const [etab, setEtab] = useState("main");
@@ -3181,6 +3452,7 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
   const [newItem, setNewItem] = useState("");
   const ETABS = [
     { k: "main", l: "Trip" },
+    { k: "plan", l: "Plan" },
     { k: "site", l: "Site" },
     { k: "fishing", l: "Fishing" },
     { k: "packing", l: "Packing" },
@@ -3789,6 +4061,7 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
               )}
             </>
           )}
+          {etab === "plan" && <TripPlanTab form={form} set={set} profiles={profiles} />}
           {etab === "site" && <SiteDetailsTab form={form} set={set} />}
           {etab === "fishing" && <FishingLogTab form={form} set={set} />}
           {etab === "packing" && (
@@ -7948,6 +8221,7 @@ useEffect(() => {
       privacy: "private",
       memorySpots: [],
       tripCover: "auto",
+      tripPlan: createDefaultTripPlan(),
     });
     setSub("edit");
   };
@@ -7977,6 +8251,7 @@ useEffect(() => {
       privacy: "private",
       memorySpots: [],
       tripCover: "auto",
+      tripPlan: createDefaultTripPlan(),
     });
     setTab("journal");
     setSub("edit");
