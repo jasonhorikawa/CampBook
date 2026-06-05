@@ -61,35 +61,27 @@ function fullSrc(photo) {
 // =======================
 // Auth + Supabase Helpers
 // =======================
-function defaultDisplayNameFromUser(user, fallbackEmail = "") {
-  const email = user?.email || fallbackEmail || "";
-  const metaName =
-    user?.user_metadata?.display_name ||
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name;
-
-  return (
-    metaName ||
-    email.split("@")[0] ||
-    "Camper"
-  );
+function defaultDisplayNameFromEmail(email) {
+  return String(email || "")
+    .split("@")[0]
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
 }
 
-async function ensureProfile(userOverride = null) {
-  let user = userOverride;
+function cleanDisplayName(name, email) {
+  const cleaned = String(name || "").trim().replace(/\s+/g, " ");
+  return cleaned || defaultDisplayNameFromEmail(email) || "Camper";
+}
 
-  if (!user) {
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
+async function upsertProfileForUser(user, displayNameOverride = "") {
+  if (!user?.id) return null;
 
-    user = currentUser;
-  }
-
-  if (!user) return null;
-
-  const email = user.email || "";
-  const defaultDisplayName = defaultDisplayNameFromUser(user, email);
+  const fallbackName = cleanDisplayName(
+    user.user_metadata?.display_name || user.user_metadata?.full_name,
+    user.email
+  );
+  const requestedName = String(displayNameOverride || "").trim().replace(/\s+/g, " ");
 
   const { data: existing, error: readError } = await supabase
     .from("profiles")
@@ -98,52 +90,87 @@ async function ensureProfile(userOverride = null) {
     .maybeSingle();
 
   if (readError) {
-    console.error("Profile check error:", readError);
+    console.error("Profile read failed:", readError);
+    return { error: readError };
   }
 
-  const profilePayload = {
+  if (existing) {
+    const nextDisplayName = requestedName || existing.display_name || fallbackName;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        email: user.email || existing.email || "",
+        display_name: nextDisplayName,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Profile update failed:", error);
+      return { error };
+    }
+
+    return {
+      profile: {
+        ...existing,
+        email: user.email || existing.email || "",
+        display_name: nextDisplayName,
+      },
+    };
+  }
+
+  const profile = {
     id: user.id,
-    email: existing?.email || email,
-    display_name: existing?.display_name || defaultDisplayName,
+    email: user.email || "",
+    display_name: requestedName || fallbackName,
   };
 
-  const { error } = await supabase
-    .from("profiles")
-    .upsert(profilePayload, { onConflict: "id" });
+  const { error } = await supabase.from("profiles").insert(profile);
 
   if (error) {
-    console.error("Profile upsert error:", error);
+    console.error("Profile insert failed:", error);
+    return { error };
   }
 
-  return user;
+  return { profile };
 }
 
-async function signUp(email, password) {
-  const cleanEmail = String(email || "").trim();
+async function signUp(email, password, displayName) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanName = cleanDisplayName(displayName, cleanEmail);
+
+  if (!cleanName) {
+    return { error: { message: "Please enter your name." } };
+  }
 
   if (!cleanEmail || !password) {
-    return { error: { message: "Please enter an email and password." } };
+    return { error: { message: "Please enter your name, email, and password." } };
   }
 
   const { data, error } = await supabase.auth.signUp({
     email: cleanEmail,
     password,
+    options: {
+      data: {
+        display_name: cleanName,
+        full_name: cleanName,
+      },
+    },
   });
 
   if (error) return { error };
 
-  // Create the searchable profile row immediately when Supabase returns a user.
-  // If email confirmation is required, checkLogin/ensureProfile will also repair it
-  // the first time the user actually signs in.
+  // If email confirmation is OFF, Supabase returns a session/user immediately.
+  // If confirmation is ON, this may not run until first login, so checkLogin also repairs it.
   if (data?.user) {
-    await ensureProfile(data.user);
+    await upsertProfileForUser(data.user, cleanName);
   }
 
-  return { data, error: null };
+  return { error: null, data };
 }
 
 async function signIn(email, password) {
-  const cleanEmail = String(email || "").trim();
+  const cleanEmail = String(email || "").trim().toLowerCase();
 
   if (!cleanEmail || !password) {
     return { error: { message: "Please enter an email and password." } };
@@ -156,13 +183,15 @@ async function signIn(email, password) {
 
   if (error) return { error };
 
-  // Long-term fix: auth stays fast, but every login also repairs/creates
-  // the profiles row so friend search can find this user.
+  // Repair missing profiles for older users immediately on login.
   if (data?.user) {
-    await ensureProfile(data.user);
+    await upsertProfileForUser(data.user);
   }
 
-  return { data, error: null };
+  // Long-term fix: keep sign-in focused only on authentication.
+  // Trip/friend/feed loading happens in the root auth listener after login,
+  // so the login modal never gets stuck waiting on slow Supabase reads.
+  return { error: null, data };
 }
 
 async function signOut() {
@@ -321,6 +350,21 @@ const profilesById = Object.fromEntries(
 }
 
 
+async function ensureProfile(displayNameOverride = "") {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const result = await upsertProfileForUser(user, displayNameOverride);
+
+  if (result?.error) {
+    alert("Profile error: " + result.error.message);
+  }
+
+  return user;
+}
 async function sendFriendRequest(receiverId) {
   try {
     await ensureProfile();
@@ -338,8 +382,6 @@ async function sendFriendRequest(receiverId) {
       alert("No logged in user");
       return;
     }
-
-    alert("Logged in as: " + user.email);
 
     const { error } = await supabase.from("friendships").insert([
       {
@@ -1479,6 +1521,7 @@ const Btn = ({
 
 function AuthModal({ mode = "signin", onClose, onSuccess }) {
   const isSignUp = mode === "signup";
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -1492,7 +1535,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
 
     try {
       const result = isSignUp
-        ? await signUp(email, password)
+        ? await signUp(email, password, displayName)
         : await signIn(email, password);
 
       if (result?.error) {
@@ -1501,7 +1544,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
       }
 
       if (isSignUp) {
-        setErrorMsg("Account created. Check your email if Supabase asks you to confirm your account, then log in.");
+        setErrorMsg("Account created. Check your email if Supabase asks you to confirm it. After logging in once, your name will show in friend search.");
         return;
       }
 
@@ -1590,7 +1633,32 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
         </div>
 
         <div style={{ padding: 18 }}>
-          <SLabel mt={0}>Email</SLabel>
+          {isSignUp && (
+            <>
+              <SLabel mt={0}>Name</SLabel>
+              <input
+                type="text"
+                autoComplete="name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="e.g. Andrea"
+                style={{
+                  width: "100%",
+                  padding: "11px 12px",
+                  background: "#fff",
+                  border: `1.5px solid ${P.border}`,
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontFamily: "'Lora',Georgia,serif",
+                  color: P.text,
+                  outline: "none",
+                  marginBottom: 12,
+                }}
+              />
+            </>
+          )}
+
+          <SLabel mt={isSignUp ? 0 : 0}>Email</SLabel>
           <input
             type="email"
             autoComplete="email"
@@ -8673,10 +8741,9 @@ export default function CampBook() {
       return;
     }
 
-    // Repair/create the profile row on every app load.
-    // This fixes users who exist in Supabase Auth but are missing from profiles,
-    // which is why they would not appear in friend search.
-    await ensureProfile(user);
+    // Repair/create a public profile row for every logged-in user.
+    // Friend search uses the profiles table, not Supabase Auth Users.
+    await upsertProfileForUser(user);
 
     setUserEmail(user.email || "");
 
