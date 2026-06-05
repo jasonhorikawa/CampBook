@@ -88,21 +88,10 @@ async function signIn(email, password) {
     password,
   });
 
-  if (error) return { error };
-
-  const trips = await loadTripsFromSupabase();
-
-  if (trips.length > 0) {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ...loadData(),
-        entries: trips,
-      })
-    );
-  }
-
-  return { error: null };
+  // Long-term fix: keep sign-in focused only on authentication.
+  // Trip/friend/feed loading happens in the root auth listener after login,
+  // so the login modal never gets stuck waiting on slow Supabase reads.
+  return { error };
 }
 
 async function signOut() {
@@ -1449,22 +1438,29 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
     setErrorMsg("");
     setBusy(true);
 
-    const result = isSignUp
-      ? await signUp(email, password)
-      : await signIn(email, password);
+    try {
+      const result = isSignUp
+        ? await signUp(email, password)
+        : await signIn(email, password);
 
-    setBusy(false);
+      if (result?.error) {
+        setErrorMsg(result.error.message || "Something went wrong.");
+        return;
+      }
 
-    if (result?.error) {
-      setErrorMsg(result.error.message || "Something went wrong.");
-      return;
+      if (isSignUp) {
+        setErrorMsg("Account created. Check your email if Supabase asks you to confirm your account, then log in.");
+        return;
+      }
+
+      // Close immediately after successful auth. The root auth listener will load trips/friends.
+      onSuccess?.();
+      onClose?.();
+    } catch (err) {
+      setErrorMsg(err.message || "Login failed. Please try again.");
+    } finally {
+      setBusy(false);
     }
-
-    if (isSignUp) {
-      alert("Account created! Check your email if Supabase asks you to confirm your account.");
-    }
-
-    onSuccess?.();
   };
 
   return (
@@ -3678,7 +3674,7 @@ function TripPlanTab({ form, set, profiles = [] }) {
       </PlannerCard>
 
       <div style={{ fontSize: 12, color: P.muted, lineHeight: 1.6, marginBottom: 4 }}>
-        Tip: keep actual catches in the Fishing tab. Use this Plan tab for what your group intends to do before the trip.
+        Tip: keep actual catches in the Fishing tab. Use this planning section for what your group intends to do before the trip.
       </div>
     </div>
   );
@@ -3755,7 +3751,6 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
   const [newItem, setNewItem] = useState("");
   const ETABS = [
     { k: "main", l: "Trip" },
-    { k: "plan", l: "Plan" },
     { k: "site", l: "Site" },
     { k: "fishing", l: "Fishing" },
     { k: "packing", l: "Packing" },
@@ -4367,7 +4362,6 @@ const EditEntry = ({ initial, onSave, onCancel, profiles }) => {
               )}
             </>
           )}
-          {etab === "plan" && <TripPlanTab form={form} set={set} profiles={profiles} />}
           {etab === "site" && <SiteDetailsTab form={form} set={set} />}
           {etab === "fishing" && <FishingLogTab form={form} set={set} />}
           {etab === "packing" && (
@@ -8249,6 +8243,10 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
               onChange={(e) => setDraftField("notes", e.target.value)}
               placeholder="Meals, activities, who is coming, fishing goals, reminders..."
             />
+
+            <SLabel>Detailed Trip Plan</SLabel>
+            <TripPlanTab form={draft} set={setDraftField} profiles={[]} />
+
             <div style={{ marginTop: 12 }}>
               <Btn full color={P.pine} onClick={savePlan}>
                 Save Planned Trip
@@ -8287,6 +8285,13 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
               <p style={{ fontSize: 13, lineHeight: 1.7, color: P.text, marginBottom: 10 }}>
                 {plan.notes}
               </p>
+            )}
+            {plan.tripPlan && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                <Tag label={`${ensureTripPlan(plan.tripPlan).itinerary.length} itinerary`} color={P.pine} small />
+                <Tag label={`${ensureTripPlan(plan.tripPlan).meals.length} meals`} color={P.amber} small />
+                <Tag label={`${ensureTripPlan(plan.tripPlan).tasks.length} tasks`} color={P.water} small />
+              </div>
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <Btn small color={P.pine} onClick={() => onConvertPlan(plan)} sx={{ flex: 2 }}>
@@ -8865,7 +8870,8 @@ useEffect(() => {
     }
 
     setUserEmail("");
-    window.location.reload();
+    setData(loadData());
+    setTab("home");
   };
 
   const goDetail = (c) => {
@@ -9240,7 +9246,6 @@ useEffect(() => {
             }
 
             setAuthMode(null);
-            window.location.reload();
           }}
         />
       )}
