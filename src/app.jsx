@@ -83,21 +83,26 @@ async function signIn(email, password) {
     return { error: { message: "Please enter an email and password." } };
   }
 
-  // Long-term fix: authentication should only authenticate.
-  // Trip/friend loading happens in CampBook's auth-state effect after sign-in,
-  // so a slow Supabase trips query can never freeze the login modal.
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
     email: cleanEmail,
     password,
   });
 
   if (error) return { error };
 
-  return {
-    error: null,
-    user: data?.user || null,
-    session: data?.session || null,
-  };
+  const trips = await loadTripsFromSupabase();
+
+  if (trips.length > 0) {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...loadData(),
+        entries: trips,
+      })
+    );
+  }
+
+  return { error: null };
 }
 
 async function signOut() {
@@ -314,7 +319,8 @@ async function sendFriendRequest(receiverId) {
   }
 }
 async function searchProfiles(query) {
-  if (!query || query.length < 5) return [];
+  const cleanQuery = String(query || "").trim();
+  if (cleanQuery.length < 2) return [];
 
   const {
     data: { user },
@@ -322,19 +328,25 @@ async function searchProfiles(query) {
 
   if (!user) return [];
 
+  const safeQuery = cleanQuery.replace(/[,%]/g, "");
+
   const { data, error } = await supabase
     .from("profiles")
     .select("id, email, display_name")
     .neq("id", user.id)
-    .or(`email.ilike.%${query}%,display_name.ilike.%${query}%`)
+    .or(`email.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`)
     .limit(10);
 
   if (error) {
-    alert("Search failed: " + error.message);
+    console.error("Friend search failed:", error);
     return [];
   }
 
-  return data || [];
+  return (data || []).map((p) => ({
+    ...p,
+    name: p.display_name || p.email || "Camper",
+    label: p.display_name || p.email || "Camper",
+  }));
 }
 
 async function loadFriendshipsFromSupabase() {
@@ -493,7 +505,13 @@ async function searchCampgrounds(query) {
 // =======================
 // Maps Helpers
 // =======================
+function hasCoordinates(place = {}) {
+  return Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng));
+}
+
 function getMapQuery(place = {}) {
+  if (hasCoordinates(place)) return `${place.lat},${place.lng}`;
+
   const parts = [
     place.name,
     place.title,
@@ -508,6 +526,15 @@ function getMapQuery(place = {}) {
 }
 
 function openAppleMaps(place) {
+  if (hasCoordinates(place)) {
+    const label = place.title || place.name || place.spotName || "CampBook Pin";
+    window.open(
+      `https://maps.apple.com/?ll=${place.lat},${place.lng}&q=${encodeURIComponent(label)}`,
+      "_blank"
+    );
+    return;
+  }
+
   const query = getMapQuery(place);
   if (!query) return alert("Add a place name or location first.");
   window.open(`https://maps.apple.com/?q=${encodeURIComponent(query)}`, "_blank");
@@ -515,11 +542,37 @@ function openAppleMaps(place) {
 
 function openGoogleMaps(place) {
   const query = getMapQuery(place);
-  if (!query) return alert("Add a place name or location first.");
+  if (!query) return alert("Add a place name, location, or GPS pin first.");
   window.open(
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
     "_blank"
   );
+}
+
+function getCurrentGpsLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Current location is not available on this device/browser."));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: Number(position.coords.latitude.toFixed(6)),
+          lng: Number(position.coords.longitude.toFixed(6)),
+          accuracy: Math.round(position.coords.accuracy || 0),
+          locationCapturedAt: new Date().toISOString(),
+        });
+      },
+      (error) => reject(error),
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 30000,
+      }
+    );
+  });
 }
 
 // ── Storage ───────────────────────────────────────────────
@@ -538,6 +591,7 @@ function loadData() {
     friends: INITIAL_FRIENDS,
     favorites: [],
     bucketList: [],
+    plannedTrips: [],
     darkMode: false,
   };
 }
@@ -1392,56 +1446,30 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
 
   const submit = async (e) => {
     e.preventDefault();
-
-    if (busy) return;
-
-    const cleanEmail = String(email || "").trim();
-
-    if (!cleanEmail || !password) {
-      setErrorMsg("Please enter an email and password.");
-      return;
-    }
-
-    if (isSignUp && password.length < 6) {
-      setErrorMsg("Password should be at least 6 characters.");
-      return;
-    }
-
     setErrorMsg("");
     setBusy(true);
 
-    try {
-      const result = isSignUp
-        ? await signUp(cleanEmail, password)
-        : await signIn(cleanEmail, password);
+    const result = isSignUp
+      ? await signUp(email, password)
+      : await signIn(email, password);
 
-      if (result?.error) {
-        setErrorMsg(result.error.message || "Something went wrong.");
-        return;
-      }
+    setBusy(false);
 
-      if (isSignUp) {
-        setErrorMsg("Account created. If Supabase asks for email confirmation, check your inbox before logging in.");
-        setBusy(false);
-        return;
-      }
-
-      // Close immediately after successful auth. CampBook's auth-state listener
-      // handles loading trips/friends in the background and then refreshes app state.
-      onSuccess?.();
-    } catch (err) {
-      console.error("Auth failed", err);
-      setErrorMsg(err?.message || "Login failed. Please try again.");
-    } finally {
-      setBusy(false);
+    if (result?.error) {
+      setErrorMsg(result.error.message || "Something went wrong.");
+      return;
     }
+
+    if (isSignUp) {
+      alert("Account created! Check your email if Supabase asks you to confirm your account.");
+    }
+
+    onSuccess?.();
   };
 
   return (
     <div
-      onClick={() => {
-        if (!busy) onClose?.();
-      }}
+      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -1476,7 +1504,6 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
         >
           <button
             type="button"
-            disabled={busy}
             onClick={onClose}
             style={{
               position: "absolute",
@@ -1487,9 +1514,8 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               color: "#fff",
               borderRadius: 999,
               padding: "6px 10px",
-              cursor: busy ? "not-allowed" : "pointer",
+              cursor: "pointer",
               fontWeight: 800,
-              opacity: busy ? 0.55 : 1,
             }}
           >
             ×
@@ -1521,7 +1547,6 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
             type="email"
             autoComplete="email"
             value={email}
-            disabled={busy}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             style={{
@@ -1535,7 +1560,6 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               color: P.text,
               outline: "none",
               marginBottom: 12,
-              opacity: busy ? 0.75 : 1,
             }}
           />
 
@@ -1545,7 +1569,6 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               type={showPassword ? "text" : "password"}
               autoComplete={isSignUp ? "new-password" : "current-password"}
               value={password}
-              disabled={busy}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={isSignUp ? "Create a password" : "Enter your password"}
               style={{
@@ -1558,12 +1581,10 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
                 fontFamily: "'Lora',Georgia,serif",
                 color: P.text,
                 outline: "none",
-                opacity: busy ? 0.75 : 1,
               }}
             />
             <button
               type="button"
-              disabled={busy}
               onClick={() => setShowPassword((v) => !v)}
               style={{
                 position: "absolute",
@@ -1577,8 +1598,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
                 padding: "5px 9px",
                 fontSize: 12,
                 fontWeight: 800,
-                cursor: busy ? "not-allowed" : "pointer",
-                opacity: busy ? 0.55 : 1,
+                cursor: "pointer",
               }}
             >
               {showPassword ? "Hide" : "Show"}
@@ -1588,44 +1608,25 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
           {errorMsg && (
             <div
               style={{
-                background: isSignUp && errorMsg.startsWith("Account created") ? P.pine + "14" : P.red + "12",
-                border: `1px solid ${isSignUp && errorMsg.startsWith("Account created") ? P.pine + "55" : P.red + "44"}`,
-                color: isSignUp && errorMsg.startsWith("Account created") ? P.forest : P.red,
+                background: P.red + "12",
+                border: `1px solid ${P.red}44`,
+                color: P.red,
                 borderRadius: 10,
                 padding: "9px 10px",
                 fontSize: 13,
                 marginBottom: 12,
-                lineHeight: 1.45,
               }}
             >
               {errorMsg}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={busy}
-            style={{
-              width: "100%",
-              background: busy ? P.muted : P.pine,
-              color: "#F4EFE6",
-              border: "none",
-              borderRadius: 10,
-              padding: "11px 18px",
-              fontSize: 14,
-              fontFamily: "'Lora',Georgia,serif",
-              fontWeight: 800,
-              cursor: busy ? "not-allowed" : "pointer",
-              marginTop: 4,
-              opacity: busy ? 0.75 : 1,
-            }}
-          >
-            {busy ? "Signing in..." : isSignUp ? "Create Account" : "Log In"}
-          </button>
+          <Btn full color={P.pine} onClick={undefined} sx={{ marginTop: 4 }}>
+            {busy ? "Please wait..." : isSignUp ? "Create Account" : "Log In"}
+          </Btn>
 
           <button
             type="button"
-            disabled={busy}
             onClick={() => onSuccess?.(isSignUp ? "signin" : "signup")}
             style={{
               width: "100%",
@@ -1635,8 +1636,7 @@ function AuthModal({ mode = "signin", onClose, onSuccess }) {
               fontFamily: "'Lora',Georgia,serif",
               fontSize: 13,
               marginTop: 12,
-              cursor: busy ? "not-allowed" : "pointer",
-              opacity: busy ? 0.55 : 1,
+              cursor: "pointer",
             }}
           >
             {isSignUp ? "Already have an account? Log in" : "Need an account? Sign up"}
@@ -2032,9 +2032,42 @@ function DatePicker({ startDate, endDate, onChange }) {
             >
               ‹
             </button>
-            <span style={{ fontWeight: 700, fontSize: 15, color: P.forest }}>
-              {MONTHS[mo]} {yr}
-            </span>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <select
+                value={mo}
+                onChange={(e) => setMo(Number(e.target.value))}
+                style={{
+                  border: `1px solid ${P.border}`,
+                  borderRadius: 8,
+                  padding: "5px 7px",
+                  background: "#fff",
+                  color: P.forest,
+                  fontFamily: "'Lora',Georgia,serif",
+                  fontWeight: 700,
+                }}
+              >
+                {MONTHS.map((m, idx) => (
+                  <option key={m} value={idx}>{m}</option>
+                ))}
+              </select>
+              <select
+                value={yr}
+                onChange={(e) => setYr(Number(e.target.value))}
+                style={{
+                  border: `1px solid ${P.border}`,
+                  borderRadius: 8,
+                  padding: "5px 7px",
+                  background: "#fff",
+                  color: P.forest,
+                  fontFamily: "'Lora',Georgia,serif",
+                  fontWeight: 700,
+                }}
+              >
+                {Array.from({ length: 60 }, (_, i) => now.getFullYear() + 2 - i).map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => {
                 if (mo === 11) {
@@ -6765,9 +6798,35 @@ function AddPinForm({ campName, onSave, onCancel }) {
     rating: 0,
     date: new Date().toISOString().split("T")[0],
     campName,
+    lat: "",
+    lng: "",
+    accuracy: "",
+    locationCapturedAt: "",
   });
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const pt = getPinType(form.type);
+
+  const captureLocation = async () => {
+    setLocationError("");
+    setLocating(true);
+
+    try {
+      const gps = await getCurrentGpsLocation();
+      setForm((p) => ({
+        ...p,
+        ...gps,
+        title: p.title || (p.type === "fishing" ? "Fishing Spot" : "Saved GPS Spot"),
+        distance: p.distance || `GPS saved ±${gps.accuracy} ft/meters depending on device`,
+      }));
+    } catch (err) {
+      setLocationError(err?.message || "Could not capture your location. Check browser location permissions.");
+    } finally {
+      setLocating(false);
+    }
+  };
+
   return (
     <div style={S.card}>
       <div
@@ -6843,11 +6902,45 @@ function AddPinForm({ campName, onSave, onCancel }) {
         >
           {pt.desc}
         </div>
+
+        <SLabel>GPS Location</SLabel>
+        <button
+          type="button"
+          onClick={captureLocation}
+          disabled={locating}
+          style={{
+            width: "100%",
+            border: `1.5px solid ${hasCoordinates(form) ? P.pine : P.water}`,
+            background: hasCoordinates(form) ? P.pine + "22" : P.water + "16",
+            color: hasCoordinates(form) ? P.pine : P.water,
+            borderRadius: 10,
+            padding: "10px 12px",
+            fontFamily: "'Lora',Georgia,serif",
+            fontWeight: 800,
+            cursor: locating ? "wait" : "pointer",
+            marginBottom: 8,
+          }}
+        >
+          {locating
+            ? "Finding your location..."
+            : hasCoordinates(form)
+            ? `✓ GPS Saved: ${form.lat}, ${form.lng}`
+            : "📍 Use Current Location"}
+        </button>
+        <div style={{ fontSize: 11, color: P.muted, lineHeight: 1.5, marginBottom: 10 }}>
+          Use this when you are standing at the fishing spot, trailhead, swimming hole, or hidden gem.
+        </div>
+        {locationError && (
+          <div style={{ fontSize: 12, color: P.red, marginBottom: 10 }}>
+            {locationError}
+          </div>
+        )}
+
         <SLabel>Location Name</SLabel>
         <input
           value={form.title}
           onChange={(e) => set("title", e.target.value)}
-          placeholder="e.g. Rush Creek Fishing Bend"
+          placeholder="e.g. West side of Gull Lake"
           style={{
             width: "100%",
             padding: "10px 12px",
@@ -6913,8 +7006,12 @@ function AddPinForm({ campName, onSave, onCancel }) {
           <Btn
             color={pt.color}
             onClick={() => {
-              if (!form.title.trim()) return;
-              onSave({ ...form, id: "pin" + Date.now() });
+              if (!form.title.trim() && !hasCoordinates(form)) return;
+              onSave({
+                ...form,
+                title: form.title.trim() || "Saved GPS Spot",
+                id: "pin" + Date.now(),
+              });
             }}
             sx={{ flex: 2 }}
           >
@@ -7047,6 +7144,24 @@ function PinDetail({ pin, onClose, onDelete }) {
               </div>
             </div>
           )}
+          {hasCoordinates(pin) && (
+            <div
+              style={{
+                background: P.water + "12",
+                border: `1px solid ${P.water}33`,
+                borderRadius: 10,
+                padding: "10px 14px",
+                marginBottom: 12,
+                fontSize: 12,
+                color: P.water,
+                fontWeight: 700,
+              }}
+            >
+              📍 GPS saved: {pin.lat}, {pin.lng}
+              {pin.accuracy ? ` · accuracy ~${pin.accuracy}` : ""}
+              <MapButtons place={pin} compact />
+            </div>
+          )}
           {pin.date && (
             <div style={{ fontSize: 12, color: P.muted, marginBottom: 14 }}>
               📅 Discovered {pin.date}
@@ -7114,6 +7229,8 @@ const PinsView = ({ pins, setPins, entries }) => {
     setShowAdd(false);
   };
   const deletePin = (id) => {
+    const ok = window.confirm("Delete this saved pin? This cannot be undone.");
+    if (!ok) return;
     setPins((p) => p.filter((x) => x.id !== id));
     setSelectedPin(null);
   };
@@ -7387,6 +7504,11 @@ const PinsView = ({ pins, setPins, entries }) => {
                         }}
                       >
                         🧭 {pin.distance}
+                      </div>
+                    )}
+                    {hasCoordinates(pin) && (
+                      <div style={{ fontSize: 11, color: P.water, marginTop: 4, fontWeight: 700 }}>
+                        📍 GPS pin saved
                       </div>
                     )}
                   </div>
@@ -8028,9 +8150,163 @@ function FishingView({ entries, onAdd, onEdit, onGo }) {
   );
 }
 
-function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo, userEmail, onAuth, onLogout }) {
+
+function createEmptyPlannedTrip() {
+  return {
+    id: "plan" + Date.now(),
+    campgroundName: "",
+    location: "",
+    startDate: null,
+    endDate: null,
+    siteNumber: "",
+    notes: "",
+    tripPlan: createDefaultTripPlan(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
+  const [draft, setDraft] = useState(() => createEmptyPlannedTrip());
+  const [openNew, setOpenNew] = useState(plannedTrips.length === 0);
+  const setDraftField = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
+
+  const upcoming = plannedTrips
+    .slice()
+    .sort((a, b) => String(a.startDate || "9999").localeCompare(String(b.startDate || "9999")));
+
+  const savePlan = () => {
+    const hasName = draft.campgroundName.trim() || draft.location.trim();
+    if (!hasName) return alert("Add a campground name or location first.");
+
+    setPlannedTrips((prev) => [
+      {
+        ...draft,
+        id: draft.id || "plan" + Date.now(),
+        campgroundName: draft.campgroundName.trim() || "Planned Trip",
+      },
+      ...(prev || []),
+    ]);
+    setDraft(createEmptyPlannedTrip());
+    setOpenNew(false);
+  };
+
+  const deletePlan = (id) => {
+    const ok = window.confirm("Delete this planned trip?");
+    if (!ok) return;
+    setPlannedTrips((prev) => (prev || []).filter((p) => p.id !== id));
+  };
+
+  return (
+    <div style={S.scroll}>
+      <div style={{ ...S.hdrCard(P.forest, P.pine), borderRadius: 16, marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: "#ffffff99", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          Planning
+        </div>
+        <div style={{ fontSize: 21, fontWeight: 900, color: "#fff", marginTop: 4 }}>
+          Plan first. Log later.
+        </div>
+        <div style={{ fontSize: 13, color: "#ffffffcc", lineHeight: 1.6, marginTop: 6 }}>
+          Save upcoming trips separately from finished memories. When the trip is done, turn the plan into a real trip journal.
+        </div>
+      </div>
+
+      <Btn full color={P.amber} onClick={() => setOpenNew((v) => !v)}>
+        {openNew ? "Close Planner" : "+ Plan a New Trip"}
+      </Btn>
+
+      {openNew && (
+        <div style={{ ...S.card, marginTop: 12 }}>
+          <div style={{ padding: "12px 14px" }}>
+            <SLabel mt={0}>Campground / Destination</SLabel>
+            <Inp
+              value={draft.campgroundName}
+              onChange={(e) => setDraftField("campgroundName", e.target.value)}
+              placeholder="e.g. Gull Lake Campground"
+            />
+            <SLabel>Location</SLabel>
+            <Inp
+              value={draft.location}
+              onChange={(e) => setDraftField("location", e.target.value)}
+              placeholder="e.g. June Lake, CA"
+            />
+            <SLabel>Planned Dates</SLabel>
+            <DatePicker
+              startDate={draft.startDate}
+              endDate={draft.endDate}
+              onChange={({ startDate, endDate }) =>
+                setDraft((p) => ({ ...p, startDate, endDate }))
+              }
+            />
+            <SLabel>Site Number / Reservation</SLabel>
+            <Inp
+              value={draft.siteNumber}
+              onChange={(e) => setDraftField("siteNumber", e.target.value)}
+              placeholder="e.g. Site 27 or reservation #"
+            />
+            <SLabel>Planning Notes</SLabel>
+            <PlannerTextArea
+              value={draft.notes}
+              onChange={(e) => setDraftField("notes", e.target.value)}
+              placeholder="Meals, activities, who is coming, fishing goals, reminders..."
+            />
+            <div style={{ marginTop: 12 }}>
+              <Btn full color={P.pine} onClick={savePlan}>
+                Save Planned Trip
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SLabel>Upcoming Planned Trips</SLabel>
+      {upcoming.length === 0 && (
+        <div style={{ ...S.card, padding: 18, textAlign: "center", color: P.muted }}>
+          No planned trips yet.
+        </div>
+      )}
+      {upcoming.map((plan) => (
+        <div key={plan.id} style={S.card}>
+          <div style={{ padding: "12px 14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 900, color: P.forest, fontSize: 16 }}>
+                  {plan.campgroundName || "Planned Trip"}
+                </div>
+                <div style={{ fontSize: 12, color: P.muted, marginTop: 3 }}>
+                  {plan.location || "Location not set"}
+                </div>
+              </div>
+              <Tag label="Planned" color={P.amber} small />
+            </div>
+            <div style={{ fontSize: 12, color: P.muted, marginTop: 8 }}>
+              🗓 {plan.startDate ? niceDate(plan.startDate) : "No date yet"}
+              {plan.endDate ? ` → ${niceDate(plan.endDate)}` : ""}
+              {plan.siteNumber ? ` · Site ${plan.siteNumber}` : ""}
+            </div>
+            {plan.notes && (
+              <p style={{ fontSize: 13, lineHeight: 1.7, color: P.text, marginBottom: 10 }}>
+                {plan.notes}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <Btn small color={P.pine} onClick={() => onConvertPlan(plan)} sx={{ flex: 2 }}>
+                Turn Into Trip
+              </Btn>
+              <Btn small outline color={P.red} onClick={() => deletePlan(plan.id)} sx={{ flex: 1 }}>
+                Delete
+              </Btn>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HomeView({ entries, pins, favorites, bucketList, plannedTrips = [], onAdd, onGo, userEmail, onAuth, onLogout }) {
   const st = calcTripStats(entries);
   const last = entries[entries.length - 1];
+  const nextPlan = (plannedTrips || []).slice().sort((a, b) => String(a.startDate || "9999").localeCompare(String(b.startDate || "9999")))[0];
   return (
     <div style={S.scroll}>
       <div
@@ -8220,7 +8496,7 @@ function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo, userEmail
           </div>
         </button>
         <button
-          onClick={() => onGo("profile")}
+          onClick={() => onGo("planning")}
           style={{
             background: P.card,
             border: `1px solid ${P.border}`,
@@ -8231,37 +8507,55 @@ function HomeView({ entries, pins, favorites, bucketList, onAdd, onGo, userEmail
             cursor: "pointer",
           }}
         >
-          <div style={{ fontSize: 28 }}>👤</div>
-          <div style={{ fontWeight: 700, color: P.forest }}>Profile</div>
+          <div style={{ fontSize: 28 }}>🗓️</div>
+          <div style={{ fontWeight: 700, color: P.forest }}>Plan a Trip</div>
           <div style={{ fontSize: 12, color: P.muted, marginTop: 4 }}>
-            Stats & timeline
+            {plannedTrips.length} upcoming
           </div>
         </button>
       </div>
-      {st.trophy && (
-        <div style={S.card}>
-          <div style={{ ...S.hdrCard(P.gold, P.amber) }}>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#fff8",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Trophy Fish Tracker
-            </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "#fff" }}>
-              🏆 {st.trophy.species}
-              {st.trophy.size ? ` · ${st.trophy.size}` : ""}
-            </div>
+      <div style={S.card}>
+        <div style={{ ...S.hdrCard(P.gold, P.amber) }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: "#fff8",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            Upcoming Planned Trip
           </div>
-          <div style={{ padding: "10px 14px", fontSize: 13, color: P.muted }}>
-            Best catch logged at <strong>{st.trophy.campgroundName}</strong>
-            {st.trophy.bait ? ` using ${st.trophy.bait}` : ""}.
+          <div style={{ fontSize: 17, fontWeight: 700, color: "#fff" }}>
+            🗓️ {nextPlan?.campgroundName || "No trip planned yet"}
           </div>
         </div>
-      )}
+        <div style={{ padding: "10px 14px", fontSize: 13, color: P.muted }}>
+          {nextPlan ? (
+            <>
+              <strong>{nextPlan.location || "Location not set"}</strong>
+              <div style={{ marginTop: 4 }}>
+                {nextPlan.startDate ? niceDate(nextPlan.startDate) : "No date yet"}
+                {nextPlan.endDate ? ` → ${niceDate(nextPlan.endDate)}` : ""}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <Btn small color={P.pine} onClick={() => onGo("planning")}>
+                  Open Planner
+                </Btn>
+              </div>
+            </>
+          ) : (
+            <>
+              Start a future trip plan, then convert it into a saved trip after you get home.
+              <div style={{ marginTop: 10 }}>
+                <Btn small color={P.pine} onClick={() => onGo("planning")}>
+                  + Plan Trip
+                </Btn>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
       {last && (
         <div style={S.card}>
           <div style={{ padding: "12px 14px" }}>
@@ -8426,7 +8720,16 @@ useEffect(() => {
       ...d,
       bucketList: typeof fn === "function" ? fn(d.bucketList || []) : fn,
     }));
+  const setPlannedTrips = (fn) =>
+    setData((d) => ({
+      ...d,
+      plannedTrips: typeof fn === "function" ? fn(d.plannedTrips || []) : fn,
+    }));
   const setDarkMode = (v) => setData((d) => ({ ...d, darkMode: v }));
+
+  useEffect(() => {
+    saveData(data);
+  }, [data]);
   const approveFriend = async (id) => {
     alert("Approving friendship ID: " + id);
     
@@ -8634,6 +8937,39 @@ useEffect(() => {
     setTab("journal");
     setSub("edit");
   };
+  const convertPlanToTrip = (plan) => {
+    setEditing({
+      campgroundName: plan.campgroundName || "",
+      location: plan.location || "",
+      emoji: "🏕️",
+      photos: [],
+      wishlist: [],
+      rating: 0,
+      notes: plan.notes || "",
+      startDate: plan.startDate || null,
+      endDate: plan.endDate || null,
+      siteNumber: plan.siteNumber || "",
+      who: [],
+      weather: "",
+      totalCost: "",
+      returnWorthy: null,
+      packingList: [],
+      activities: [],
+      siteDetails: {},
+      fishingLog: [],
+      mileage: "",
+      gasCost: "",
+      fuelGallons: "",
+      privacy: "private",
+      memorySpots: [],
+      tripCover: "auto",
+      tripPlan: plan.tripPlan || createDefaultTripPlan(),
+      plannedTripId: plan.id,
+    });
+    setTab("journal");
+    setSub("edit");
+  };
+
   const save = async (form) => {
   const {
     data: { user },
@@ -8690,6 +9026,10 @@ useEffect(() => {
 
     return [updatedForm, ...prev];
   });
+
+  if (form.plannedTripId) {
+    setPlannedTrips((prev) => (prev || []).filter((p) => p.id !== form.plannedTripId));
+  }
 
   setSub(null);
   setEditing(null);
@@ -8798,11 +9138,19 @@ useEffect(() => {
           pins={data.pins || []}
           favorites={data.favorites || []}
           bucketList={data.bucketList || []}
+          plannedTrips={data.plannedTrips || []}
           onAdd={goAdd}
           onGo={setTab}
           userEmail={userEmail}
           onAuth={setAuthMode}
           onLogout={handleLogout}
+        />
+      )}
+      {!sub && tab === "planning" && (
+        <PlanningView
+          plannedTrips={data.plannedTrips || []}
+          setPlannedTrips={setPlannedTrips}
+          onConvertPlan={convertPlanToTrip}
         />
       )}
       {!sub && tab === "discover" && <DiscoverView onSelectCamp={goDetail} />}
@@ -8892,6 +9240,7 @@ useEffect(() => {
             }
 
             setAuthMode(null);
+            window.location.reload();
           }}
         />
       )}
