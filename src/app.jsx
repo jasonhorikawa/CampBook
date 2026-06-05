@@ -61,6 +61,63 @@ function fullSrc(photo) {
 // =======================
 // Auth + Supabase Helpers
 // =======================
+function defaultDisplayNameFromUser(user, fallbackEmail = "") {
+  const email = user?.email || fallbackEmail || "";
+  const metaName =
+    user?.user_metadata?.display_name ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name;
+
+  return (
+    metaName ||
+    email.split("@")[0] ||
+    "Camper"
+  );
+}
+
+async function ensureProfile(userOverride = null) {
+  let user = userOverride;
+
+  if (!user) {
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+
+    user = currentUser;
+  }
+
+  if (!user) return null;
+
+  const email = user.email || "";
+  const defaultDisplayName = defaultDisplayNameFromUser(user, email);
+
+  const { data: existing, error: readError } = await supabase
+    .from("profiles")
+    .select("id, email, display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (readError) {
+    console.error("Profile check error:", readError);
+  }
+
+  const profilePayload = {
+    id: user.id,
+    email: existing?.email || email,
+    display_name: existing?.display_name || defaultDisplayName,
+  };
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(profilePayload, { onConflict: "id" });
+
+  if (error) {
+    console.error("Profile upsert error:", error);
+  }
+
+  return user;
+}
+
 async function signUp(email, password) {
   const cleanEmail = String(email || "").trim();
 
@@ -68,12 +125,21 @@ async function signUp(email, password) {
     return { error: { message: "Please enter an email and password." } };
   }
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: cleanEmail,
     password,
   });
 
-  return { error };
+  if (error) return { error };
+
+  // Create the searchable profile row immediately when Supabase returns a user.
+  // If email confirmation is required, checkLogin/ensureProfile will also repair it
+  // the first time the user actually signs in.
+  if (data?.user) {
+    await ensureProfile(data.user);
+  }
+
+  return { data, error: null };
 }
 
 async function signIn(email, password) {
@@ -83,15 +149,20 @@ async function signIn(email, password) {
     return { error: { message: "Please enter an email and password." } };
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: cleanEmail,
     password,
   });
 
-  // Long-term fix: keep sign-in focused only on authentication.
-  // Trip/friend/feed loading happens in the root auth listener after login,
-  // so the login modal never gets stuck waiting on slow Supabase reads.
-  return { error };
+  if (error) return { error };
+
+  // Long-term fix: auth stays fast, but every login also repairs/creates
+  // the profiles row so friend search can find this user.
+  if (data?.user) {
+    await ensureProfile(data.user);
+  }
+
+  return { data, error: null };
 }
 
 async function signOut() {
@@ -250,25 +321,6 @@ const profilesById = Object.fromEntries(
 }
 
 
-async function ensureProfile() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const { error } = await supabase.from("profiles").upsert({
-  id: user.id,
-  email: user.email,
-  display_name: user.email?.split("@")[0],
-});
-
-if (error) {
-  alert("Profile error: " + error.message);
-}
-
-  return user;
-}
 async function sendFriendRequest(receiverId) {
   try {
     await ensureProfile();
@@ -3592,25 +3644,21 @@ function TripPlanTab({ form, set, profiles = [] }) {
         </div>
       </PlannerCard>
 
-      <PlannerCard title="🗓️ Day-by-Day Itinerary" subtitle="Add multiple activities for the same day/date. Use Day Label for Day 1, Day 2, Travel Day, etc.">
+      <PlannerCard title="🗓️ Day-by-Day Itinerary" subtitle="Add plans like fishing, hikes, meals, relaxing at camp, or kid activities.">
         {(plan.itinerary || []).map((item) => (
           <div key={item.id} style={{ background: "#fff", border: `1px solid ${P.border}`, borderRadius: 12, padding: 10, marginBottom: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 7, marginBottom: 7 }}>
-              <PlannerInput value={item.day || ""} onChange={(e) => updateItem("itinerary", item.id, { day: e.target.value })} placeholder="Day label, e.g. Day 1" />
-              <PlannerInput type="date" value={item.date || ""} onChange={(e) => updateItem("itinerary", item.id, { date: e.target.value })} placeholder="Date" />
+              <PlannerInput value={item.day || ""} onChange={(e) => updateItem("itinerary", item.id, { day: e.target.value })} placeholder="Day 1" />
+              <PlannerInput value={item.time || ""} onChange={(e) => updateItem("itinerary", item.id, { time: e.target.value })} placeholder="8:00 AM" />
               <MiniRemove onClick={() => removeItem("itinerary", item.id)} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1.2fr", gap: 7, marginBottom: 7 }}>
-              <PlannerInput value={item.time || ""} onChange={(e) => updateItem("itinerary", item.id, { time: e.target.value })} placeholder="Time, e.g. 8:00 AM" />
-              <PlannerInput value={item.activity || ""} onChange={(e) => updateItem("itinerary", item.id, { activity: e.target.value })} placeholder="Activity, e.g. Fish Gull Lake" />
-            </div>
-            <PlannerInput value={item.location || ""} onChange={(e) => updateItem("itinerary", item.id, { location: e.target.value })} placeholder="Location / meeting spot" />
+            <PlannerInput value={item.activity || ""} onChange={(e) => updateItem("itinerary", item.id, { activity: e.target.value })} placeholder="Activity, e.g. Fish June Lake" />
             <div style={{ height: 7 }} />
-            <PlannerTextArea value={item.notes || ""} onChange={(e) => updateItem("itinerary", item.id, { notes: e.target.value })} placeholder="Details, backup plan, gear needed, who is going, etc." minHeight={48} />
+            <PlannerInput value={item.location || ""} onChange={(e) => updateItem("itinerary", item.id, { location: e.target.value })} placeholder="Location / meeting spot" />
           </div>
         ))}
-        <Btn full outline color={P.pine} onClick={() => addItem("itinerary", { day: "", date: "", time: "", activity: "", location: "", notes: "" })}>
-          + Add Activity
+        <Btn full outline color={P.pine} onClick={() => addItem("itinerary", { day: "", time: "", activity: "", location: "" })}>
+          + Add Itinerary Item
         </Btn>
       </PlannerCard>
 
@@ -8166,90 +8214,32 @@ function createEmptyPlannedTrip() {
 function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
   const [draft, setDraft] = useState(() => createEmptyPlannedTrip());
   const [openNew, setOpenNew] = useState(plannedTrips.length === 0);
-  const [editingPlanId, setEditingPlanId] = useState(null);
   const setDraftField = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
 
   const upcoming = plannedTrips
     .slice()
     .sort((a, b) => String(a.startDate || "9999").localeCompare(String(b.startDate || "9999")));
 
-  const resetPlanner = () => {
-    setDraft(createEmptyPlannedTrip());
-    setEditingPlanId(null);
-    setOpenNew(false);
-  };
-
-  const startNewPlan = () => {
-    setDraft(createEmptyPlannedTrip());
-    setEditingPlanId(null);
-    setOpenNew(true);
-  };
-
-  const startEditPlan = (plan) => {
-    setDraft({
-      ...createEmptyPlannedTrip(),
-      ...plan,
-      id: plan.id,
-      tripPlan: ensureTripPlan(plan.tripPlan),
-    });
-    setEditingPlanId(plan.id);
-    setOpenNew(true);
-    window.scrollTo?.({ top: 0, behavior: "smooth" });
-  };
-
   const savePlan = () => {
     const hasName = draft.campgroundName.trim() || draft.location.trim();
     if (!hasName) return alert("Add a campground name or location first.");
 
-    const cleanPlan = {
-      ...draft,
-      id: draft.id || "plan" + Date.now(),
-      campgroundName: draft.campgroundName.trim() || "Planned Trip",
-      location: draft.location.trim(),
-      notes: draft.notes || "",
-      tripPlan: ensureTripPlan(draft.tripPlan),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setPlannedTrips((prev) => {
-      const list = prev || [];
-      if (editingPlanId) {
-        return list.map((p) => (p.id === editingPlanId ? cleanPlan : p));
-      }
-      return [cleanPlan, ...list];
-    });
-
-    resetPlanner();
+    setPlannedTrips((prev) => [
+      {
+        ...draft,
+        id: draft.id || "plan" + Date.now(),
+        campgroundName: draft.campgroundName.trim() || "Planned Trip",
+      },
+      ...(prev || []),
+    ]);
+    setDraft(createEmptyPlannedTrip());
+    setOpenNew(false);
   };
 
   const deletePlan = (id) => {
-    const ok = window.confirm("Delete this planned trip? This cannot be undone.");
+    const ok = window.confirm("Delete this planned trip?");
     if (!ok) return;
     setPlannedTrips((prev) => (prev || []).filter((p) => p.id !== id));
-    if (editingPlanId === id) resetPlanner();
-  };
-
-  const PlanSummary = ({ plan }) => {
-    const fullPlan = ensureTripPlan(plan.tripPlan);
-    const firstItems = (fullPlan.itinerary || []).slice(0, 3);
-
-    if (firstItems.length === 0) return null;
-
-    return (
-      <div style={{ marginTop: 10, background: P.cream, border: `1px solid ${P.border}`, borderRadius: 12, padding: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 900, color: P.forest, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-          First Planned Activities
-        </div>
-        {firstItems.map((item) => (
-          <div key={item.id} style={{ fontSize: 12, color: P.text, lineHeight: 1.5, marginBottom: 5 }}>
-            <strong>{item.day || "Day"}{item.date ? ` · ${niceDate(item.date)}` : ""}</strong>
-            {item.time ? ` · ${item.time}` : ""}
-            {item.activity ? ` — ${item.activity}` : ""}
-            {item.location ? ` @ ${item.location}` : ""}
-          </div>
-        ))}
-      </div>
-    );
   };
 
   return (
@@ -8262,23 +8252,18 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
           Plan first. Log later.
         </div>
         <div style={{ fontSize: 13, color: "#ffffffcc", lineHeight: 1.6, marginTop: 6 }}>
-          Save upcoming trips separately from finished memories. Tap any planned trip to edit it, then turn it into a real trip journal after the trip.
+          Save upcoming trips separately from finished memories. When the trip is done, turn the plan into a real trip journal.
         </div>
       </div>
 
-      <Btn full color={P.amber} onClick={openNew ? resetPlanner : startNewPlan}>
+      <Btn full color={P.amber} onClick={() => setOpenNew((v) => !v)}>
         {openNew ? "Close Planner" : "+ Plan a New Trip"}
       </Btn>
 
       {openNew && (
         <div style={{ ...S.card, marginTop: 12 }}>
           <div style={{ padding: "12px 14px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <SLabel mt={0}>{editingPlanId ? "Edit Planned Trip" : "New Planned Trip"}</SLabel>
-              {editingPlanId && <Tag label="Editing" color={P.amber} small />}
-            </div>
-
-            <SLabel mt={editingPlanId ? 6 : 0}>Campground / Destination</SLabel>
+            <SLabel mt={0}>Campground / Destination</SLabel>
             <Inp
               value={draft.campgroundName}
               onChange={(e) => setDraftField("campgroundName", e.target.value)}
@@ -8314,15 +8299,10 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
             <SLabel>Detailed Trip Plan</SLabel>
             <TripPlanTab form={draft} set={setDraftField} profiles={[]} />
 
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <div style={{ marginTop: 12 }}>
               <Btn full color={P.pine} onClick={savePlan}>
-                {editingPlanId ? "Save Changes" : "Save Planned Trip"}
+                Save Planned Trip
               </Btn>
-              {editingPlanId && (
-                <Btn outline color={P.muted} onClick={resetPlanner} sx={{ flex: "0 0 auto" }}>
-                  Cancel
-                </Btn>
-              )}
             </div>
           </div>
         </div>
@@ -8334,53 +8314,48 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
           No planned trips yet.
         </div>
       )}
-      {upcoming.map((plan) => {
-        const fullPlan = ensureTripPlan(plan.tripPlan);
-        return (
-          <div key={plan.id} style={{ ...S.card, cursor: "pointer" }} onClick={() => startEditPlan(plan)}>
-            <div style={{ padding: "12px 14px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 900, color: P.forest, fontSize: 16 }}>
-                    {plan.campgroundName || "Planned Trip"}
-                  </div>
-                  <div style={{ fontSize: 12, color: P.muted, marginTop: 3 }}>
-                    {plan.location || "Location not set"}
-                  </div>
+      {upcoming.map((plan) => (
+        <div key={plan.id} style={S.card}>
+          <div style={{ padding: "12px 14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 900, color: P.forest, fontSize: 16 }}>
+                  {plan.campgroundName || "Planned Trip"}
                 </div>
-                <Tag label="Tap to Edit" color={P.amber} small />
+                <div style={{ fontSize: 12, color: P.muted, marginTop: 3 }}>
+                  {plan.location || "Location not set"}
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: P.muted, marginTop: 8 }}>
-                🗓 {plan.startDate ? niceDate(plan.startDate) : "No date yet"}
-                {plan.endDate ? ` → ${niceDate(plan.endDate)}` : ""}
-                {plan.siteNumber ? ` · Site ${plan.siteNumber}` : ""}
-              </div>
-              {plan.notes && (
-                <p style={{ fontSize: 13, lineHeight: 1.7, color: P.text, marginBottom: 10 }}>
-                  {plan.notes}
-                </p>
-              )}
+              <Tag label="Planned" color={P.amber} small />
+            </div>
+            <div style={{ fontSize: 12, color: P.muted, marginTop: 8 }}>
+              🗓 {plan.startDate ? niceDate(plan.startDate) : "No date yet"}
+              {plan.endDate ? ` → ${niceDate(plan.endDate)}` : ""}
+              {plan.siteNumber ? ` · Site ${plan.siteNumber}` : ""}
+            </div>
+            {plan.notes && (
+              <p style={{ fontSize: 13, lineHeight: 1.7, color: P.text, marginBottom: 10 }}>
+                {plan.notes}
+              </p>
+            )}
+            {plan.tripPlan && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                <Tag label={`${fullPlan.itinerary.length} activities`} color={P.pine} small />
-                <Tag label={`${fullPlan.meals.length} meals`} color={P.amber} small />
-                <Tag label={`${fullPlan.tasks.length} tasks`} color={P.water} small />
+                <Tag label={`${ensureTripPlan(plan.tripPlan).itinerary.length} itinerary`} color={P.pine} small />
+                <Tag label={`${ensureTripPlan(plan.tripPlan).meals.length} meals`} color={P.amber} small />
+                <Tag label={`${ensureTripPlan(plan.tripPlan).tasks.length} tasks`} color={P.water} small />
               </div>
-              <PlanSummary plan={plan} />
-              <div style={{ display: "flex", gap: 8, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
-                <Btn small outline color={P.water} onClick={() => startEditPlan(plan)} sx={{ flex: 1 }}>
-                  Edit
-                </Btn>
-                <Btn small color={P.pine} onClick={() => onConvertPlan(plan)} sx={{ flex: 1.5 }}>
-                  Turn Into Trip
-                </Btn>
-                <Btn small outline color={P.red} onClick={() => deletePlan(plan.id)} sx={{ flex: 1 }}>
-                  Delete
-                </Btn>
-              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <Btn small color={P.pine} onClick={() => onConvertPlan(plan)} sx={{ flex: 2 }}>
+                Turn Into Trip
+              </Btn>
+              <Btn small outline color={P.red} onClick={() => deletePlan(plan.id)} sx={{ flex: 1 }}>
+                Delete
+              </Btn>
             </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -8697,6 +8672,11 @@ export default function CampBook() {
       setUserEmail("");
       return;
     }
+
+    // Repair/create the profile row on every app load.
+    // This fixes users who exist in Supabase Auth but are missing from profiles,
+    // which is why they would not appear in friend search.
+    await ensureProfile(user);
 
     setUserEmail(user.email || "");
 
