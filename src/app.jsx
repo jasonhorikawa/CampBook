@@ -218,7 +218,9 @@ async function loadTripsFromSupabase() {
     return [];
   }
 
- return (data || []).map((trip) => {
+ return (data || [])
+ .filter((trip) => trip.trip_data?.entryType !== "planned")
+ .map((trip) => {
   const t = trip.trip_data || {};
   const allPhotos = t.photos || t.images || [];
   const previewPhotos = allPhotos.slice(0, 3);
@@ -268,6 +270,104 @@ async function loadFullTripFromSupabase(tripId) {
   };
 }
 
+
+async function loadPlannedTripsFromSupabase() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("trips")
+    .select("id, user_id, title, location, created_at, trip_data")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error("Load planned trips error:", error);
+    return [];
+  }
+
+  return (data || [])
+    .filter((row) => row.trip_data?.entryType === "planned")
+    .map((row) => ({
+      ...(row.trip_data || {}),
+      id: row.id,
+      supabase_id: row.id,
+      user_id: row.user_id,
+      campgroundName: row.trip_data?.campgroundName || row.title || "Planned Trip",
+      location: row.trip_data?.location || row.location || "",
+    }));
+}
+
+async function savePlannedTripToSupabase(plan) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    alert("Please sign in before saving a planned trip.");
+    return null;
+  }
+
+  const cleanPlan = {
+    ...plan,
+    entryType: "planned",
+    campgroundName: String(plan.campgroundName || "Planned Trip").trim(),
+    location: String(plan.location || "").trim(),
+  };
+
+  const row = {
+    title: cleanPlan.campgroundName || "Planned Trip",
+    location: cleanPlan.location || "",
+    user_id: user.id,
+    trip_data: cleanPlan,
+  };
+
+  if (plan.supabase_id) {
+    row.id = plan.supabase_id;
+  }
+
+  const { data, error } = await supabase
+    .from("trips")
+    .upsert([row])
+    .select("id, user_id, title, location, created_at, trip_data")
+    .single();
+
+  if (error) {
+    alert("Planned trip save failed: " + error.message);
+    return null;
+  }
+
+  return {
+    ...(data.trip_data || cleanPlan),
+    id: data.id,
+    supabase_id: data.id,
+    user_id: data.user_id,
+    campgroundName: data.trip_data?.campgroundName || data.title || "Planned Trip",
+    location: data.trip_data?.location || data.location || "",
+  };
+}
+
+async function deletePlannedTripFromSupabase(plan) {
+  const rowId = plan?.supabase_id || plan?.id;
+  if (!rowId) return true;
+
+  const { error } = await supabase
+    .from("trips")
+    .delete()
+    .eq("id", rowId);
+
+  if (error) {
+    alert("Delete planned trip failed: " + error.message);
+    return false;
+  }
+
+  return true;
+}
+
 async function loadFriendsFeedFromSupabase() {
   const {
     data: { user },
@@ -281,7 +381,8 @@ async function loadFriendsFeedFromSupabase() {
   } = await supabase
     .from("friendships")
     .select("*")
-    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .eq("status", "friend");
 
   if (friendshipError) {
     alert("Friendship feed load failed: " + friendshipError.message);
@@ -439,17 +540,32 @@ async function loadFriendshipsFromSupabase() {
 
   if (!user) return [];
 
- const { data, error } = await supabase
-  .from("friendships")
-  .select("*")
-  .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
-  
+  const { data, error } = await supabase
+    .from("friendships")
+    .select("*")
+    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
   if (error) {
     alert("Friendships load failed: " + error.message);
     return [];
   }
 
-  return data || [];
+  // Keep the real database status in dbStatus, but change outgoing pending
+  // requests to "sent" for the UI so they never show as requests to approve.
+  return (data || []).map((f) => ({
+    ...f,
+    dbStatus: f.status,
+    status:
+      f.status === "pending" && f.receiver_id !== user.id
+        ? "sent"
+        : f.status,
+    direction:
+      f.status === "pending" && f.receiver_id === user.id
+        ? "incoming"
+        : f.status === "pending" && f.requester_id === user.id
+        ? "outgoing"
+        : "friend",
+  }));
 }
 
 function compressImage(file, maxWidth = 900, quality = 0.6) {
@@ -5654,6 +5770,21 @@ entries.forEach((e) => {
                   ✏️
                 </button>
                 <button
+                  onClick={(e) => { e.stopPropagation(); onRename?.(entry); }}
+                  title="Rename trip"
+                  style={{
+                    background: "#ffffff22",
+                    border: "none",
+                    color: "#fff",
+                    borderRadius: 7,
+                    padding: "3px 7px",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  🏷️
+                </button>
+                <button
                   onClick={(e) => { e.stopPropagation(); onDelete(entry); }}
                   style={{
                     background: "#ffffff22",
@@ -8279,7 +8410,7 @@ function createEmptyPlannedTrip() {
   };
 }
 
-function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
+function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan, onSavePlan, onDeletePlan }) {
   const [draft, setDraft] = useState(() => createEmptyPlannedTrip());
   const [openNew, setOpenNew] = useState(plannedTrips.length === 0);
   const setDraftField = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
@@ -8288,26 +8419,32 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
     .slice()
     .sort((a, b) => String(a.startDate || "9999").localeCompare(String(b.startDate || "9999")));
 
-  const savePlan = () => {
+  const savePlan = async () => {
     const hasName = draft.campgroundName.trim() || draft.location.trim();
     if (!hasName) return alert("Add a campground name or location first.");
 
-    setPlannedTrips((prev) => [
-      {
-        ...draft,
-        id: draft.id || "plan" + Date.now(),
-        campgroundName: draft.campgroundName.trim() || "Planned Trip",
-      },
-      ...(prev || []),
-    ]);
+    const planToSave = {
+      ...draft,
+      id: draft.id || "plan" + Date.now(),
+      campgroundName: draft.campgroundName.trim() || "Planned Trip",
+    };
+
+    const savedPlan = onSavePlan ? await onSavePlan(planToSave) : planToSave;
+    if (!savedPlan) return;
+
+    setPlannedTrips((prev) => [savedPlan, ...(prev || []).filter((p) => p.id !== savedPlan.id)]);
     setDraft(createEmptyPlannedTrip());
     setOpenNew(false);
   };
 
-  const deletePlan = (id) => {
+  const deletePlan = async (plan) => {
     const ok = window.confirm("Delete this planned trip?");
     if (!ok) return;
-    setPlannedTrips((prev) => (prev || []).filter((p) => p.id !== id));
+
+    const deleted = onDeletePlan ? await onDeletePlan(plan) : true;
+    if (!deleted) return;
+
+    setPlannedTrips((prev) => (prev || []).filter((p) => p.id !== plan.id));
   };
 
   return (
@@ -8417,7 +8554,7 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan }) {
               <Btn small color={P.pine} onClick={() => onConvertPlan(plan)} sx={{ flex: 2 }}>
                 Turn Into Trip
               </Btn>
-              <Btn small outline color={P.red} onClick={() => deletePlan(plan.id)} sx={{ flex: 1 }}>
+              <Btn small outline color={P.red} onClick={() => deletePlan(plan)} sx={{ flex: 1 }}>
                 Delete
               </Btn>
             </div>
@@ -8748,13 +8885,16 @@ export default function CampBook() {
     setUserEmail(user.email || "");
 
     const tripsPromise = loadTripsFromSupabase();
+    const plannedTripsPromise = loadPlannedTripsFromSupabase();
     const friendshipsPromise = loadFriendshipsFromSupabase();
 
     const trips = await tripsPromise;
+    const plannedTrips = await plannedTripsPromise;
 
 setData((d) => ({
   ...d,
   entries: trips,
+  plannedTrips: plannedTrips.length ? plannedTrips : d.plannedTrips || [],
 }));
 
 let friendships = await friendshipsPromise;
@@ -8798,6 +8938,7 @@ friendships = friendships.map((f) => {
     setData((d) => ({
       ...d,
       entries: trips,
+      plannedTrips: plannedTrips.length ? plannedTrips : d.plannedTrips || [],
       friends: friendships,
     }));
   }
@@ -8859,23 +9000,84 @@ useEffect(() => {
   useEffect(() => {
     saveData(data);
   }, [data]);
-  const approveFriend = async (id) => {
-    alert("Approving friendship ID: " + id);
-    
-  const { error } = await supabase
-    .from("friendships")
-    .update({ status: "friend" })
-    .eq("id", id);
-    
-    if (error) {
-  alert("Approve failed: " + error.message);
-  return;
-}
+  const refreshFriendsAndFeed = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  setFriends((p) =>
-    p.map((f) => (f.id === id ? { ...f, status: "friend" } : f))
-  );
-};
+    if (!user) return;
+
+    let friendships = await loadFriendshipsFromSupabase();
+
+    const profileIds = [
+      ...new Set(
+        friendships
+          .flatMap((f) => [f.requester_id, f.receiver_id])
+          .filter((profileId) => profileId && profileId !== user.id)
+      ),
+    ];
+
+    let profilesById = {};
+
+    if (profileIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, email, display_name")
+        .in("id", profileIds);
+
+      profilesById = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+    }
+
+    friendships = friendships.map((f) => {
+      const otherUserId =
+        f.requester_id === user.id ? f.receiver_id : f.requester_id;
+      const profile = profilesById[otherUserId];
+
+      return {
+        ...f,
+        name: profile?.display_name || profile?.email || "Camper",
+        email: profile?.email || "",
+      };
+    });
+
+    setFriends(friendships);
+    setFeedEntries(await loadFriendsFeedFromSupabase());
+  };
+
+  const approveFriend = async (id) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("Please sign in first.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("friendships")
+      .update({ status: "friend" })
+      .eq("id", id)
+      .eq("receiver_id", user.id)
+      .eq("status", "pending");
+
+    if (error) {
+      alert("Approve failed: " + error.message);
+      return;
+    }
+
+    await refreshFriendsAndFeed();
+  };
+
+  const savePlannedTrip = async (plan) => {
+    const saved = await savePlannedTripToSupabase(plan);
+    return saved;
+  };
+
+  const deletePlannedTrip = async (plan) => {
+    return await deletePlannedTripFromSupabase(plan);
+  };
+
   const toggleFavorite = (c) =>
     setData((d) => ({
       ...d,
@@ -8945,6 +9147,7 @@ useEffect(() => {
     if (!cleanName || cleanName === currentName) return;
 
     const patch = {
+      title: cleanName,
       campgroundName: cleanName,
       campground: cleanName,
     };
@@ -9120,6 +9323,7 @@ useEffect(() => {
     cover_photo: coverPhoto,
     trip_data: {
       ...form,
+      entryType: "memory",
       cover: coverPhoto,
     },
   };
@@ -9158,6 +9362,7 @@ useEffect(() => {
   });
 
   if (form.plannedTripId) {
+    await deletePlannedTripFromSupabase({ id: form.plannedTripId, supabase_id: form.plannedTripId });
     setPlannedTrips((prev) => (prev || []).filter((p) => p.id !== form.plannedTripId));
   }
 
@@ -9281,6 +9486,8 @@ useEffect(() => {
           plannedTrips={data.plannedTrips || []}
           setPlannedTrips={setPlannedTrips}
           onConvertPlan={convertPlanToTrip}
+          onSavePlan={savePlannedTrip}
+          onDeletePlan={deletePlannedTrip}
         />
       )}
       {!sub && tab === "discover" && <DiscoverView onSelectCamp={goDetail} />}
