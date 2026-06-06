@@ -3680,50 +3680,75 @@ function ensureTripPlan(plan = {}) {
   };
 }
 
-function PlannerInput({ value, onChange, placeholder, type = "text" }) {
+function PlannerFieldLabel({ children }) {
+  if (!children) return null;
+
   return (
-    <input
-      type={type}
-      value={value || ""}
-      onChange={onChange}
-      placeholder={placeholder}
+    <div
       style={{
-        width: "100%",
-        padding: "9px 10px",
-        background: "#fff",
-        border: `1.5px solid ${P.border}`,
-        borderRadius: 10,
-        fontSize: 13,
-        fontFamily: "'Lora',Georgia,serif",
-        color: P.text,
-        outline: "none",
-        boxSizing: "border-box",
+        fontSize: 10,
+        fontWeight: 900,
+        letterSpacing: "0.09em",
+        textTransform: "uppercase",
+        color: P.muted,
+        marginBottom: 4,
       }}
-    />
+    >
+      {children}
+    </div>
   );
 }
 
-function PlannerTextArea({ value, onChange, placeholder, minHeight = 70 }) {
+function PlannerInput({ value, onChange, placeholder, type = "text", label }) {
   return (
-    <textarea
-      value={value || ""}
-      onChange={onChange}
-      placeholder={placeholder}
-      style={{
-        width: "100%",
-        padding: "9px 10px",
-        background: "#fff",
-        border: `1.5px solid ${P.border}`,
-        borderRadius: 10,
-        fontSize: 13,
-        fontFamily: "'Lora',Georgia,serif",
-        color: P.text,
-        outline: "none",
-        boxSizing: "border-box",
-        resize: "vertical",
-        minHeight,
-      }}
-    />
+    <label style={{ display: "block", width: "100%" }}>
+      <PlannerFieldLabel>{label}</PlannerFieldLabel>
+      <input
+        type={type}
+        value={value || ""}
+        onChange={onChange}
+        placeholder={placeholder}
+        style={{
+          width: "100%",
+          padding: "9px 10px",
+          background: "#fff",
+          border: `1.5px solid ${P.border}`,
+          borderRadius: 10,
+          fontSize: 13,
+          fontFamily: "'Lora',Georgia,serif",
+          color: P.text,
+          outline: "none",
+          boxSizing: "border-box",
+        }}
+      />
+    </label>
+  );
+}
+
+function PlannerTextArea({ value, onChange, placeholder, minHeight = 70, label }) {
+  return (
+    <label style={{ display: "block", width: "100%" }}>
+      <PlannerFieldLabel>{label}</PlannerFieldLabel>
+      <textarea
+        value={value || ""}
+        onChange={onChange}
+        placeholder={placeholder}
+        style={{
+          width: "100%",
+          padding: "9px 10px",
+          background: "#fff",
+          border: `1.5px solid ${P.border}`,
+          borderRadius: 10,
+          fontSize: 13,
+          fontFamily: "'Lora',Georgia,serif",
+          color: P.text,
+          outline: "none",
+          boxSizing: "border-box",
+          resize: "vertical",
+          minHeight,
+        }}
+      />
+    </label>
   );
 }
 
@@ -3796,34 +3821,34 @@ function TripPlanTab({ form, set, profiles = [] }) {
           <PlannerInput
             value={plan.overview.site || form.siteNumber || ""}
             onChange={(e) => updateOverview("site", e.target.value)}
-            placeholder="Site # / loop / campsite notes"
+            label="Site / Campsite" placeholder="Site # / loop / campsite notes"
           />
           <PlannerInput
             value={plan.overview.group || ""}
             onChange={(e) => updateOverview("group", e.target.value)}
-            placeholder={`Group members, e.g. ${peopleHint}`}
+            label="Group Members" placeholder={`Group members, e.g. ${peopleHint}`}
           />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <PlannerInput
               value={plan.overview.arrival || ""}
               onChange={(e) => updateOverview("arrival", e.target.value)}
-              placeholder="Arrival time"
+              label="Arrival Time" placeholder="Arrival time"
             />
             <PlannerInput
               value={plan.overview.departure || ""}
               onChange={(e) => updateOverview("departure", e.target.value)}
-              placeholder="Pack up / checkout"
+              label="Departure / Checkout" placeholder="Pack up / checkout"
             />
           </div>
           <PlannerInput
             value={plan.overview.sharedAlbum || ""}
             onChange={(e) => updateOverview("sharedAlbum", e.target.value)}
-            placeholder="Shared photo album link or name"
+            label="Shared Album" placeholder="Shared photo album link or name"
           />
           <PlannerTextArea
             value={plan.overview.notes || ""}
             onChange={(e) => updateOverview("notes", e.target.value)}
-            placeholder="Important plan notes, gate code, reservation holder, quiet hours, etc."
+            label="Plan Notes" placeholder="Important plan notes, gate code, reservation holder, quiet hours, etc."
           />
         </div>
       </PlannerCard>
@@ -3832,13 +3857,13 @@ function TripPlanTab({ form, set, profiles = [] }) {
         {(plan.itinerary || []).map((item) => (
           <div key={item.id} style={{ background: "#fff", border: `1px solid ${P.border}`, borderRadius: 12, padding: 10, marginBottom: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 7, marginBottom: 7 }}>
-              <PlannerInput value={item.day || ""} onChange={(e) => updateItem("itinerary", item.id, { day: e.target.value })} placeholder="Day 1" />
-              <PlannerInput value={item.time || ""} onChange={(e) => updateItem("itinerary", item.id, { time: e.target.value })} placeholder="8:00 AM" />
+              <PlannerInput value={item.day || ""} onChange={(e) => updateItem("itinerary", item.id, { day: e.target.value })} label="Day / Date" placeholder="Day 1" />
+              <PlannerInput value={item.time || ""} onChange={(e) => updateItem("itinerary", item.id, { time: e.target.value })} label="Time" placeholder="8:00 AM" />
               <MiniRemove onClick={() => removeItem("itinerary", item.id)} />
             </div>
-            <PlannerInput value={item.activity || ""} onChange={(e) => updateItem("itinerary", item.id, { activity: e.target.value })} placeholder="Activity, e.g. Fish June Lake" />
+            <PlannerInput value={item.activity || ""} onChange={(e) => updateItem("itinerary", item.id, { activity: e.target.value })} label="Activity" placeholder="Activity, e.g. Fish June Lake" />
             <div style={{ height: 7 }} />
-            <PlannerInput value={item.location || ""} onChange={(e) => updateItem("itinerary", item.id, { location: e.target.value })} placeholder="Location / meeting spot" />
+            <PlannerInput value={item.location || ""} onChange={(e) => updateItem("itinerary", item.id, { location: e.target.value })} label="Location / Meeting Spot" placeholder="Location / meeting spot" />
           </div>
         ))}
         <Btn full outline color={P.pine} onClick={() => addItem("itinerary", { day: "", time: "", activity: "", location: "" })}>
@@ -3850,15 +3875,15 @@ function TripPlanTab({ form, set, profiles = [] }) {
         {(plan.meals || []).map((meal) => (
           <div key={meal.id} style={{ background: "#fff", border: `1px solid ${P.border}`, borderRadius: 12, padding: 10, marginBottom: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 7, marginBottom: 7 }}>
-              <PlannerInput value={meal.day || ""} onChange={(e) => updateItem("meals", meal.id, { day: e.target.value })} placeholder="Day 1" />
-              <PlannerInput value={meal.mealType || ""} onChange={(e) => updateItem("meals", meal.id, { mealType: e.target.value })} placeholder="Breakfast" />
+              <PlannerInput value={meal.day || ""} onChange={(e) => updateItem("meals", meal.id, { day: e.target.value })} label="Day / Date" placeholder="Day 1" />
+              <PlannerInput value={meal.mealType || ""} onChange={(e) => updateItem("meals", meal.id, { mealType: e.target.value })} label="Meal Type" placeholder="Breakfast" />
               <MiniRemove onClick={() => removeItem("meals", meal.id)} />
             </div>
-            <PlannerInput value={meal.name || ""} onChange={(e) => updateItem("meals", meal.id, { name: e.target.value })} placeholder="Meal, e.g. eggs and bacon" />
+            <PlannerInput value={meal.name || ""} onChange={(e) => updateItem("meals", meal.id, { name: e.target.value })} label="Meal" placeholder="Meal, e.g. eggs and bacon" />
             <div style={{ height: 7 }} />
-            <PlannerInput value={meal.cook || ""} onChange={(e) => updateItem("meals", meal.id, { cook: e.target.value })} placeholder="Assigned cook / group" />
+            <PlannerInput value={meal.cook || ""} onChange={(e) => updateItem("meals", meal.id, { cook: e.target.value })} label="Assigned Cook / Group" placeholder="Assigned cook / group" />
             <div style={{ height: 7 }} />
-            <PlannerTextArea value={meal.ingredients || ""} onChange={(e) => updateItem("meals", meal.id, { ingredients: e.target.value })} placeholder="Ingredients / groceries needed" minHeight={58} />
+            <PlannerTextArea value={meal.ingredients || ""} onChange={(e) => updateItem("meals", meal.id, { ingredients: e.target.value })} label="Ingredients / Groceries" placeholder="Ingredients / groceries needed" minHeight={58} />
           </div>
         ))}
         <Btn full outline color={P.amber} onClick={() => addItem("meals", { day: "", mealType: "", name: "", cook: "", ingredients: "" })}>
@@ -3869,8 +3894,8 @@ function TripPlanTab({ form, set, profiles = [] }) {
       <PlannerCard title="🎒 Shared Gear" subtitle="Gear the group shares: tent, stove, firewood, cooler, Dutch oven, canopy, etc.">
         {(plan.sharedGear || []).map((gear) => (
           <div key={gear.id} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr auto", gap: 7, marginBottom: 8 }}>
-            <PlannerInput value={gear.item || ""} onChange={(e) => updateItem("sharedGear", gear.id, { item: e.target.value })} placeholder="Item" />
-            <PlannerInput value={gear.owner || ""} onChange={(e) => updateItem("sharedGear", gear.id, { owner: e.target.value })} placeholder="Who brings it?" />
+            <PlannerInput value={gear.item || ""} onChange={(e) => updateItem("sharedGear", gear.id, { item: e.target.value })} label="Item" placeholder="Item" />
+            <PlannerInput value={gear.owner || ""} onChange={(e) => updateItem("sharedGear", gear.id, { owner: e.target.value })} label="Who Brings It" placeholder="Who brings it?" />
             <MiniRemove onClick={() => removeItem("sharedGear", gear.id)} />
           </div>
         ))}
@@ -3882,7 +3907,7 @@ function TripPlanTab({ form, set, profiles = [] }) {
       <PlannerCard title="🧢 Personal Gear Reminders" subtitle="Personal items that everyone should remember, separate from shared gear.">
         {(plan.personalGear || []).map((gear) => (
           <div key={gear.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 7, marginBottom: 8 }}>
-            <PlannerInput value={gear.item || ""} onChange={(e) => updateItem("personalGear", gear.id, { item: e.target.value })} placeholder="Personal item, e.g. warm layers" />
+            <PlannerInput value={gear.item || ""} onChange={(e) => updateItem("personalGear", gear.id, { item: e.target.value })} label="Personal Item" placeholder="Personal item, e.g. warm layers" />
             <MiniRemove onClick={() => removeItem("personalGear", gear.id)} />
           </div>
         ))}
@@ -3895,8 +3920,8 @@ function TripPlanTab({ form, set, profiles = [] }) {
         {(plan.tasks || []).map((task) => (
           <div key={task.id} style={{ background: "#fff", border: `1px solid ${P.border}`, borderRadius: 12, padding: 10, marginBottom: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 7 }}>
-              <PlannerInput value={task.task || ""} onChange={(e) => updateItem("tasks", task.id, { task: e.target.value })} placeholder="Task" />
-              <PlannerInput value={task.owner || ""} onChange={(e) => updateItem("tasks", task.id, { owner: e.target.value })} placeholder="Assigned to" />
+              <PlannerInput value={task.task || ""} onChange={(e) => updateItem("tasks", task.id, { task: e.target.value })} label="Task" placeholder="Task" />
+              <PlannerInput value={task.owner || ""} onChange={(e) => updateItem("tasks", task.id, { owner: e.target.value })} label="Assigned To" placeholder="Assigned to" />
               <MiniRemove onClick={() => removeItem("tasks", task.id)} />
             </div>
             <div style={{ marginTop: 8 }}>
@@ -8413,27 +8438,99 @@ function createEmptyPlannedTrip() {
 function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan, onSavePlan, onDeletePlan }) {
   const [draft, setDraft] = useState(() => createEmptyPlannedTrip());
   const [openNew, setOpenNew] = useState(plannedTrips.length === 0);
+  const [campQuery, setCampQuery] = useState("");
+  const [campResults, setCampResults] = useState([]);
+  const [campSearchLoading, setCampSearchLoading] = useState(false);
+
+  const isEditingPlan = Boolean(draft.supabase_id || String(draft.id || "").startsWith("plan") === false && draft.id);
+
   const setDraftField = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
 
   const upcoming = plannedTrips
     .slice()
     .sort((a, b) => String(a.startDate || "9999").localeCompare(String(b.startDate || "9999")));
 
+  useEffect(() => {
+    const clean = campQuery.trim();
+
+    if (!openNew || clean.length < 5) {
+      setCampResults([]);
+      setCampSearchLoading(false);
+      return;
+    }
+
+    let active = true;
+    setCampSearchLoading(true);
+
+    const timer = setTimeout(async () => {
+      const results = await searchCampgrounds(clean);
+      if (!active) return;
+      setCampResults(results || []);
+      setCampSearchLoading(false);
+    }, 450);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [campQuery, openNew]);
+
+  const resetPlanner = () => {
+    setDraft(createEmptyPlannedTrip());
+    setCampQuery("");
+    setCampResults([]);
+  };
+
+  const chooseCampground = (place) => {
+    setDraft((p) => ({
+      ...p,
+      campgroundName: place.name || "",
+      location: place.location || place.address || "",
+      selectedCampground: place,
+      lat: place.lat,
+      lng: place.lng,
+    }));
+    setCampQuery("");
+    setCampResults([]);
+  };
+
+  const editPlan = (plan) => {
+    setDraft({
+      ...createEmptyPlannedTrip(),
+      ...plan,
+      tripPlan: ensureTripPlan(plan.tripPlan),
+    });
+    setCampQuery("");
+    setCampResults([]);
+    setOpenNew(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const savePlan = async () => {
-    const hasName = draft.campgroundName.trim() || draft.location.trim();
+    const hasName = String(draft.campgroundName || "").trim() || String(draft.location || "").trim();
     if (!hasName) return alert("Add a campground name or location first.");
 
     const planToSave = {
       ...draft,
       id: draft.id || "plan" + Date.now(),
-      campgroundName: draft.campgroundName.trim() || "Planned Trip",
+      campgroundName: String(draft.campgroundName || "").trim() || "Planned Trip",
+      location: String(draft.location || "").trim(),
+      tripPlan: ensureTripPlan(draft.tripPlan),
     };
 
     const savedPlan = onSavePlan ? await onSavePlan(planToSave) : planToSave;
     if (!savedPlan) return;
 
-    setPlannedTrips((prev) => [savedPlan, ...(prev || []).filter((p) => p.id !== savedPlan.id)]);
-    setDraft(createEmptyPlannedTrip());
+    setPlannedTrips((prev) => [
+      savedPlan,
+      ...(prev || []).filter((p) => {
+        const savedId = savedPlan.supabase_id || savedPlan.id;
+        const existingId = p.supabase_id || p.id;
+        return existingId !== savedId;
+      }),
+    ]);
+
+    resetPlanner();
     setOpenNew(false);
   };
 
@@ -8444,7 +8541,18 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan, onSav
     const deleted = onDeletePlan ? await onDeletePlan(plan) : true;
     if (!deleted) return;
 
-    setPlannedTrips((prev) => (prev || []).filter((p) => p.id !== plan.id));
+    setPlannedTrips((prev) => (prev || []).filter((p) => {
+      const deleteId = plan.supabase_id || plan.id;
+      const existingId = p.supabase_id || p.id;
+      return existingId !== deleteId;
+    }));
+
+    const draftId = draft.supabase_id || draft.id;
+    const deleteId = plan.supabase_id || plan.id;
+    if (draftId && draftId === deleteId) {
+      resetPlanner();
+      setOpenNew(false);
+    }
   };
 
   return (
@@ -8461,25 +8569,95 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan, onSav
         </div>
       </div>
 
-      <Btn full color={P.amber} onClick={() => setOpenNew((v) => !v)}>
+      <Btn
+        full
+        color={openNew ? P.amber : P.pine}
+        onClick={() => {
+          if (openNew) {
+            resetPlanner();
+            setOpenNew(false);
+          } else {
+            resetPlanner();
+            setOpenNew(true);
+          }
+        }}
+        sx={{ marginBottom: 12 }}
+      >
         {openNew ? "Close Planner" : "+ Plan a New Trip"}
       </Btn>
 
       {openNew && (
-        <div style={{ ...S.card, marginTop: 12 }}>
-          <div style={{ padding: "12px 14px" }}>
-            <SLabel mt={0}>Campground / Destination</SLabel>
+        <div style={S.card}>
+          <div style={{ padding: 14 }}>
+            <SLabel mt={0}>{isEditingPlan ? "Edit Planned Trip" : "New Planned Trip"}</SLabel>
+
+            <div style={{ position: "relative" }}>
+              <SLabel mt={0}>Campground / Destination Search</SLabel>
+              <Inp
+                value={campQuery}
+                onChange={(e) => setCampQuery(e.target.value)}
+                placeholder="Start typing, e.g. Sherwin Creek Campground"
+              />
+              {(campSearchLoading || campResults.length > 0) && (
+                <div
+                  style={{
+                    position: "relative",
+                    background: "#fff",
+                    border: `1px solid ${P.border}`,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    marginTop: -4,
+                    marginBottom: 10,
+                    boxShadow: "0 8px 20px #00000014",
+                  }}
+                >
+                  {campSearchLoading && (
+                    <div style={{ padding: 10, fontSize: 12, color: P.muted }}>
+                      Searching campgrounds...
+                    </div>
+                  )}
+                  {!campSearchLoading &&
+                    campResults.map((place) => (
+                      <button
+                        key={place.id}
+                        onClick={() => chooseCampground(place)}
+                        style={{
+                          width: "100%",
+                          border: "none",
+                          borderBottom: `1px solid ${P.border}`,
+                          background: "transparent",
+                          padding: "10px 12px",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          fontFamily: "'Lora',Georgia,serif",
+                        }}
+                      >
+                        <div style={{ fontWeight: 900, color: P.forest, fontSize: 14 }}>
+                          🏕️ {place.name}
+                        </div>
+                        <div style={{ fontSize: 12, color: P.muted, marginTop: 2 }}>
+                          {place.location}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            <SLabel>Campground / Destination</SLabel>
             <Inp
               value={draft.campgroundName}
               onChange={(e) => setDraftField("campgroundName", e.target.value)}
               placeholder="e.g. Gull Lake Campground"
             />
+
             <SLabel>Location</SLabel>
             <Inp
               value={draft.location}
               onChange={(e) => setDraftField("location", e.target.value)}
               placeholder="e.g. June Lake, CA"
             />
+
             <SLabel>Planned Dates</SLabel>
             <DatePicker
               startDate={draft.startDate}
@@ -8488,25 +8666,54 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan, onSav
                 setDraft((p) => ({ ...p, startDate, endDate }))
               }
             />
+
             <SLabel>Site Number / Reservation</SLabel>
             <Inp
               value={draft.siteNumber}
               onChange={(e) => setDraftField("siteNumber", e.target.value)}
               placeholder="e.g. Site 27 or reservation #"
             />
+
             <SLabel>Planning Notes</SLabel>
-            <PlannerTextArea
-              value={draft.notes}
+            <textarea
+              value={draft.notes || ""}
               onChange={(e) => setDraftField("notes", e.target.value)}
               placeholder="Meals, activities, who is coming, fishing goals, reminders..."
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                background: "#fff",
+                border: `1.5px solid ${P.border}`,
+                borderRadius: 10,
+                fontSize: 14,
+                fontFamily: "'Lora',Georgia,serif",
+                color: P.text,
+                outline: "none",
+                boxSizing: "border-box",
+                resize: "vertical",
+                minHeight: 74,
+              }}
             />
 
             <SLabel>Detailed Trip Plan</SLabel>
             <TripPlanTab form={draft} set={setDraftField} profiles={[]} />
 
-            <div style={{ marginTop: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isEditingPlan ? "1fr 1fr" : "1fr", gap: 8, marginTop: 12 }}>
+              {isEditingPlan && (
+                <Btn
+                  full
+                  outline
+                  color={P.muted}
+                  onClick={() => {
+                    resetPlanner();
+                    setOpenNew(false);
+                  }}
+                >
+                  Cancel Edit
+                </Btn>
+              )}
               <Btn full color={P.pine} onClick={savePlan}>
-                Save Planned Trip
+                {isEditingPlan ? "Update Planned Trip" : "Save Planned Trip"}
               </Btn>
             </div>
           </div>
@@ -8520,7 +8727,7 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan, onSav
         </div>
       )}
       {upcoming.map((plan) => (
-        <div key={plan.id} style={S.card}>
+        <div key={plan.supabase_id || plan.id} style={S.card}>
           <div style={{ padding: "12px 14px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div>
@@ -8550,11 +8757,14 @@ function PlanningView({ plannedTrips = [], setPlannedTrips, onConvertPlan, onSav
                 <Tag label={`${ensureTripPlan(plan.tripPlan).tasks.length} tasks`} color={P.water} small />
               </div>
             )}
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <Btn small color={P.pine} onClick={() => onConvertPlan(plan)} sx={{ flex: 2 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+              <Btn small outline color={P.water} onClick={() => editPlan(plan)}>
+                Edit Plan
+              </Btn>
+              <Btn small color={P.pine} onClick={() => onConvertPlan(plan)}>
                 Turn Into Trip
               </Btn>
-              <Btn small outline color={P.red} onClick={() => deletePlan(plan)} sx={{ flex: 1 }}>
+              <Btn small outline color={P.red} onClick={() => deletePlan(plan)} sx={{ gridColumn: "1 / -1" }}>
                 Delete
               </Btn>
             </div>
