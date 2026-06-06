@@ -40,10 +40,13 @@ const STORAGE_KEY = "campbook_v10";
 function previewSrc(photo) {
   if (!photo) return "";
   if (typeof photo === "string") return photo;
+  // Prefer true thumbnails first. This is the biggest storage-egress saver for cards/feed.
+  if (typeof photo.thumbUrl === "string") return photo.thumbUrl;
+  if (typeof photo.thumbnailUrl === "string") return photo.thumbnailUrl;
   if (typeof photo.previewUrl === "string") return photo.previewUrl;
   if (typeof photo.url === "string") return photo.url;
   if (photo.url && typeof photo.url === "object") {
-    return photo.url.previewUrl || photo.url.url || "";
+    return photo.url.thumbUrl || photo.url.thumbnailUrl || photo.url.previewUrl || photo.url.url || "";
   }
   return "";
 }
@@ -57,6 +60,81 @@ function fullSrc(photo) {
     return photo.url.url || photo.url.previewUrl || "";
   }
   return "";
+}
+
+// Small browser-side image cache.
+// This helps repeat visitors avoid re-downloading the same Supabase images over and over.
+// It uses Cache Storage when available and falls back to the normal browser cache.
+const IMAGE_CACHE_NAME = "campbook-image-cache-v1";
+const imageMemoryCache = new Map();
+
+function CachedImage({ src, onLoad, onError, ...props }) {
+  const [cachedSrc, setCachedSrc] = useState(() => {
+    if (!src) return "";
+    if (imageMemoryCache.has(src)) return imageMemoryCache.get(src);
+    return String(src).startsWith("http") ? "" : src;
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCachedImage() {
+      if (!src) {
+        setCachedSrc("");
+        return;
+      }
+
+      if (imageMemoryCache.has(src)) {
+        setCachedSrc(imageMemoryCache.get(src));
+        return;
+      }
+
+      // Non-http URLs and older browsers should just use the normal src.
+      if (
+        typeof window === "undefined" ||
+        !("caches" in window) ||
+        !String(src).startsWith("http")
+      ) {
+        setCachedSrc(src);
+        return;
+      }
+
+      try {
+        const cache = await caches.open(IMAGE_CACHE_NAME);
+        let response = await cache.match(src);
+
+        if (!response) {
+          response = await fetch(src, { mode: "cors", cache: "force-cache" });
+          if (response && response.ok) {
+            await cache.put(src, response.clone());
+          }
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        imageMemoryCache.set(src, objectUrl);
+
+        if (!cancelled) setCachedSrc(objectUrl);
+      } catch (err) {
+        if (!cancelled) setCachedSrc(src);
+      }
+    }
+
+    loadCachedImage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return (
+    <img
+      {...props}
+      src={cachedSrc || src || ""}
+      onLoad={onLoad}
+      onError={onError}
+    />
+  );
 }
 // =======================
 // Auth + Supabase Helpers
@@ -233,7 +311,9 @@ async function loadTripsFromSupabase() {
   campgroundName: t.campgroundName || t.campground || trip.title || "",
   location: t.location || trip.location || "",
   previewPhotos: previewPhotos,
-  photos: allPhotos,
+  // Do not attach the full photo array to list cards. Full photos load only when the trip is opened.
+  photos: previewPhotos,
+  hasFullPhotos: allPhotos.length > previewPhotos.length,
   cover: previewSrc(t.cover) || previewSrc(previewPhotos[0]) || trip.cover_photo || "",
   photoCount: allPhotos.length,
 };
@@ -261,6 +341,9 @@ async function loadFullTripFromSupabase(tripId) {
     user_id: data.user_id,
     campgroundName: t.campgroundName || t.campground || data.title || "",
     location: t.location || data.location || "",
+    photos: t.photos || t.images || [],
+    previewPhotos: (t.photos || t.images || []).slice(0, 3),
+    photoCount: (t.photos || t.images || []).length,
     cover:
   previewSrc(t.cover) ||
   previewSrc(t.photos?.[0]) ||
@@ -433,7 +516,9 @@ const profilesById = Object.fromEntries(
       campgroundName: t.campgroundName || t.campground || trip.title || "",
       location: t.location || trip.location || "",
       previewPhotos: previewPhotos,
-      photos: allPhotos,
+      // Feed cards only get preview photos. This prevents the Friends tab from loading every full-size image.
+      photos: previewPhotos,
+      hasFullPhotos: allPhotos.length > previewPhotos.length,
       cover: previewSrc(t.cover) || previewSrc(previewPhotos[0]) || trip.cover_photo || "",
       photoCount: allPhotos.length,
       userName:
@@ -613,7 +698,10 @@ function compressImage(file, maxWidth = 900, quality = 0.6) {
   });
 }
 async function uploadTripPhoto(file) {
+  // Upload one reasonably-sized full image plus one tiny thumbnail.
+  // Cards/feed use thumbUrl. The full url is only used in the photo viewer.
   const optimizedFile = await compressImage(file, 1200, 0.72);
+  const thumbFile = await compressImage(file, 360, 0.58);
 
   const safeName = file.name
     .toLowerCase()
@@ -621,14 +709,15 @@ async function uploadTripPhoto(file) {
     .replace(/[^a-z0-9.-]/g, "")
     .replace(/\.[^.]+$/, "");
 
-  const path = `${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}-${safeName || "photo"}.jpg`;
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const path = `${id}-${safeName || "photo"}.jpg`;
+  const thumbPath = `thumbs/${id}-${safeName || "photo"}.jpg`;
 
   const { error } = await supabase.storage
     .from("trip-photos")
     .upload(path, optimizedFile, {
       contentType: "image/jpeg",
+      cacheControl: "31536000",
       upsert: false,
     });
 
@@ -637,14 +726,32 @@ async function uploadTripPhoto(file) {
     return null;
   }
 
+  const { error: thumbError } = await supabase.storage
+    .from("trip-photos")
+    .upload(thumbPath, thumbFile, {
+      contentType: "image/jpeg",
+      cacheControl: "31536000",
+      upsert: false,
+    });
+
+  if (thumbError) {
+    console.warn("Thumbnail upload failed, falling back to full image:", thumbError);
+  }
+
   const publicUrl = supabase.storage
     .from("trip-photos")
     .getPublicUrl(path).data.publicUrl;
 
+  const thumbUrl = thumbError
+    ? publicUrl
+    : supabase.storage.from("trip-photos").getPublicUrl(thumbPath).data.publicUrl;
+
   return {
     url: publicUrl,
-    previewUrl: publicUrl,
+    previewUrl: thumbUrl,
+    thumbUrl,
     path,
+    thumbPath: thumbError ? null : thumbPath,
   };
 }
 async function saveTripToSupabase() {
@@ -2484,7 +2591,7 @@ const PhotoUploader = ({ photos = [], cover, onSetCover, onChange, onOpenPhotoVi
                   background: P.cream,
                 }}
               >
-                <img
+                <CachedImage
                   src={previewSrc(p)}
                   loading="lazy"
                   alt=""
@@ -3312,7 +3419,7 @@ function FishingLogTab({ form, set }) {
                 >
                   <div style={{ display: "flex", gap: 9 }}>
                     {f.photo && (
-                      <img
+                      <CachedImage
                         src={f.photo.url}
                         alt=""
                         style={{
@@ -5214,7 +5321,7 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onRename, onDelete, prof
 
           <div style={{ display: "flex", gap: 12, paddingRight: 64 }}>
             {coverImage ? (
-              <img
+              <CachedImage
                 src={coverImage}
                 alt=""
                 loading="lazy"
@@ -5292,7 +5399,7 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onRename, onDelete, prof
 
           {photos.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 4, marginBottom: 12 }}>
-              <img
+              <CachedImage
                 src={previewSrc(photos[0])}
                 alt=""
                 loading="lazy"
@@ -5301,7 +5408,7 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onRename, onDelete, prof
               />
               <div style={{ display: "grid", gap: 4 }}>
                 {photos.slice(1, 3).map((p, i) => (
-                  <img
+                  <CachedImage
                     key={p.id || i}
                     src={previewSrc(p)}
                     alt=""
@@ -5351,7 +5458,7 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onRename, onDelete, prof
                       <div key={f.id} style={{ background: "rgba(255,255,255,0.75)", borderRadius: 10, padding: 9, marginTop: 6, border: `1px solid ${P.border}88` }}>
                         <div style={{ display: "flex", gap: 8 }}>
                           {f.photo?.url && (
-                            <img src={f.photo.url} alt="" style={{ width: 52, height: 52, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                            <CachedImage src={f.photo.url} alt="" style={{ width: 52, height: 52, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
                           )}
                           <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 900, color: P.forest }}>
@@ -5645,7 +5752,11 @@ entries.forEach((e) => {
         return (
           <div
             key={entry.id}
-            onClick={() => setDetailEntry(entry)}
+            onClick={async () => {
+              const rowId = entry.supabase_id || entry.id;
+              const fullEntry = rowId ? await loadFullTripFromSupabase(rowId) : null;
+              setDetailEntry(fullEntry || entry);
+            }}
             style={{ ...S.card, cursor: "pointer" }}
           >
             <div
@@ -5657,7 +5768,7 @@ entries.forEach((e) => {
               }}
             >
               {coverImage ? (
-                <img
+                <CachedImage
                   src={coverImage}
                   alt=""
                   loading="lazy"
@@ -5901,7 +6012,7 @@ entries.forEach((e) => {
                   )}
                 </div>
               )}
-              {entry.photos?.length > 0 && (
+              {(entry.previewPhotos || entry.photos || []).length > 0 && (
                 <div
                   style={{
                     display: "grid",
@@ -5910,13 +6021,17 @@ entries.forEach((e) => {
                     marginBottom: 10,
                   }}
                 >
-                  {(entry.photos || []).slice(0, 3).map((p) => (
+                  {(entry.previewPhotos || entry.photos || []).slice(0, 3).map((p, photoCardIndex) => (
                     <div
-                      key={p.id}
-                      onClick={(e) => {
+                      key={p.id || previewSrc(p) || photoCardIndex}
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        setViewerPhotos(entry.photos.map((x) => fullSrc(x)).filter(Boolean));
-                        setViewerIndex(entry.photos.findIndex((x) => x.id === p.id));
+                        const rowId = entry.supabase_id || entry.id;
+                        const fullEntry = rowId ? await loadFullTripFromSupabase(rowId) : entry;
+                        const fullPhotos = (fullEntry?.photos || entry.photos || []).map((x) => fullSrc(x)).filter(Boolean);
+                        if (!fullPhotos.length) return;
+                        setViewerPhotos(fullPhotos);
+                        setViewerIndex(Math.min(photoCardIndex, fullPhotos.length - 1));
                       }}
                       style={{
                         aspectRatio: "1",
@@ -5925,7 +6040,7 @@ entries.forEach((e) => {
                         cursor: "pointer",
                       }}
                     >
-                      <img
+                      <CachedImage
                         src={previewSrc(p)}
                         loading="lazy"
                         alt=""
@@ -6174,7 +6289,7 @@ entries.forEach((e) => {
       ‹
     </button>
 
-    <img
+    <CachedImage
   key={viewerIndex}
   src={viewerPhotos[viewerIndex]}
   alt=""
@@ -7954,9 +8069,9 @@ const FeedView = ({ friends }) => {
             </div>
             <div style={{ display: "flex", gap: 3, padding: "8px 14px 0" }}>
               {trip.photos.map((p, i) => (
-  <img
+  <CachedImage
     key={i}
-    src={p.url || p}
+    src={previewSrc(p)}
     alt=""
     style={{
       flex: 1,
@@ -9076,15 +9191,21 @@ export default function CampBook() {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [authMode, setAuthMode] = useState(null);
   const [userEmail, setUserEmail] = useState("");
+  const initialLoadInFlightRef = useRef(false);
+  const feedLoadInFlightRef = useRef(false);
 
  useEffect(() => {
   async function checkLogin() {
+    if (initialLoadInFlightRef.current) return;
+    initialLoadInFlightRef.current = true;
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
       setUserEmail("");
+      initialLoadInFlightRef.current = false;
       return;
     }
 
@@ -9142,15 +9263,14 @@ friendships = friendships.map((f) => {
     email: profile?.email || "",
   };
 });
-    const feed = await loadFriendsFeedFromSupabase();
-    setFeedEntries(feed);
-
     setData((d) => ({
       ...d,
       entries: trips,
       plannedTrips: plannedTrips.length ? plannedTrips : d.plannedTrips || [],
       friends: friendships,
     }));
+
+    initialLoadInFlightRef.current = false;
   }
 
   checkLogin();
@@ -9165,15 +9285,21 @@ friendships = friendships.map((f) => {
 }, []);
 
 useEffect(() => {
-  if (tab !== "friends") return;
+  if (tab !== "friends" || !userEmail) return;
+  if (feedLoadInFlightRef.current) return;
 
   async function loadFeed() {
-    const feed = await loadFriendsFeedFromSupabase();
-    setFeedEntries(feed);
+    feedLoadInFlightRef.current = true;
+    try {
+      const feed = await loadFriendsFeedFromSupabase();
+      setFeedEntries(feed);
+    } finally {
+      feedLoadInFlightRef.current = false;
+    }
   }
 
   loadFeed();
-}, []);
+}, [tab, userEmail]);
 
   const setEntries = (fn) =>
     setData((d) => ({
