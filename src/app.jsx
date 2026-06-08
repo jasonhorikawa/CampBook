@@ -283,15 +283,14 @@ async function loadTripsFromSupabase() {
 
   if (!user) return [];
 
-  // Fast card load: do NOT pull trip_data here.
-  // trip_data can contain every photo URL, so only load the small summary columns.
+  // Balanced load: summary columns keep cards fast, trip_data restores old trip stats/details.
+  // This fixes older trips that were saved before the new summary columns existed.
   const { data, error } = await supabase
     .from("trips")
     .select(
-      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, photo_count, preview_photos, start_date, end_date"
+      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, photo_count, preview_photos, start_date, end_date, trip_data"
     )
     .eq("user_id", user.id)
-    .neq("entry_type", "planned")
     .order("created_at", { ascending: false })
     .limit(25);
 
@@ -301,36 +300,53 @@ async function loadTripsFromSupabase() {
     return [];
   }
 
-  return (data || []).map((trip) => {
-    const previewPhotos = Array.isArray(trip.preview_photos)
-      ? trip.preview_photos
-      : [];
+  return (data || [])
+    .filter((trip) => {
+      const t = trip.trip_data || {};
+      return trip.entry_type !== "planned" && t.entryType !== "planned";
+    })
+    .map((trip) => {
+      const t = trip.trip_data || {};
+      const fullPhotos = Array.isArray(t.photos)
+        ? t.photos
+        : Array.isArray(t.images)
+        ? t.images
+        : [];
+      const previewPhotos = Array.isArray(trip.preview_photos) && trip.preview_photos.length
+        ? trip.preview_photos
+        : fullPhotos.slice(0, 3);
+      const photoCount = Number(trip.photo_count || fullPhotos.length || previewPhotos.length || 0);
 
-    return {
-      supabase_id: trip.id,
-      id: trip.id,
-      user_id: trip.user_id,
-      campgroundName: trip.title || "",
-      campground: trip.title || "",
-      location: trip.location || "",
-      created_at: trip.created_at,
-      privacy: trip.privacy || "friends",
-      entryType: trip.entry_type || "memory",
-      startDate: trip.start_date || null,
-      endDate: trip.end_date || null,
-      previewPhotos,
-      photos: previewPhotos,
-      hasFullPhotos: (trip.photo_count || 0) > previewPhotos.length,
-      cover: trip.cover_photo || previewSrc(previewPhotos[0]) || "",
-      photoCount: trip.photo_count || previewPhotos.length,
-    };
-  });
+      return {
+        ...t,
+        supabase_id: trip.id,
+        id: trip.id,
+        user_id: trip.user_id,
+        campgroundName: t.campgroundName || t.campground || trip.title || "",
+        campground: t.campground || t.campgroundName || trip.title || "",
+        location: t.location || trip.location || "",
+        created_at: trip.created_at,
+        privacy: trip.privacy || t.privacy || "friends",
+        entryType: trip.entry_type || t.entryType || "memory",
+        startDate: trip.start_date || t.startDate || null,
+        endDate: trip.end_date || t.endDate || null,
+        previewPhotos,
+        photos: previewPhotos,
+        hasFullPhotos: photoCount > previewPhotos.length,
+        cover:
+          trip.cover_photo ||
+          previewSrc(t.cover) ||
+          previewSrc(previewPhotos[0]) ||
+          "",
+        photoCount,
+      };
+    });
 }
 
 async function loadFullTripFromSupabase(tripId) {
   const { data, error } = await supabase
     .from("trips")
-    .select("id, user_id, title, location, created_at, cover_photo, trip_data")
+    .select("id, user_id, title, location, created_at, cover_photo, entry_type, privacy, photo_count, preview_photos, start_date, end_date, trip_data")
     .eq("id", tripId)
     .single();
 
@@ -340,6 +356,14 @@ async function loadFullTripFromSupabase(tripId) {
   }
 
   const t = data.trip_data || {};
+  const photos = Array.isArray(t.photos)
+    ? t.photos
+    : Array.isArray(t.images)
+    ? t.images
+    : [];
+  const previewPhotos = Array.isArray(data.preview_photos) && data.preview_photos.length
+    ? data.preview_photos
+    : photos.slice(0, 3);
 
   return {
     ...t,
@@ -347,19 +371,24 @@ async function loadFullTripFromSupabase(tripId) {
     id: data.id,
     user_id: data.user_id,
     campgroundName: t.campgroundName || t.campground || data.title || "",
+    campground: t.campground || t.campgroundName || data.title || "",
     location: t.location || data.location || "",
-    photos: t.photos || t.images || [],
-    previewPhotos: (t.photos || t.images || []).slice(0, 3),
-    photoCount: (t.photos || t.images || []).length,
+    created_at: data.created_at,
+    privacy: data.privacy || t.privacy || "friends",
+    entryType: data.entry_type || t.entryType || "memory",
+    startDate: data.start_date || t.startDate || null,
+    endDate: data.end_date || t.endDate || null,
+    photos,
+    previewPhotos,
+    photoCount: Number(data.photo_count || photos.length || previewPhotos.length || 0),
     cover:
-  previewSrc(t.cover) ||
-  previewSrc(t.photos?.[0]) ||
-  previewSrc(t.previewPhotos?.[0]) ||
-  data.cover_photo ||
-  "",
+      data.cover_photo ||
+      previewSrc(t.cover) ||
+      previewSrc(photos[0]) ||
+      previewSrc(previewPhotos[0]) ||
+      "",
   };
 }
-
 
 async function loadPlannedTripsFromSupabase() {
   const {
@@ -368,34 +397,41 @@ async function loadPlannedTripsFromSupabase() {
 
   if (!user) return [];
 
-  // Fast planner load: no trip_data here.
+  // Include trip_data so older planned trips still show even if entry_type was defaulted to "trip".
   const { data, error } = await supabase
     .from("trips")
     .select(
-      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, start_date, end_date"
+      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, start_date, end_date, trip_data"
     )
     .eq("user_id", user.id)
-    .eq("entry_type", "planned")
     .order("created_at", { ascending: false })
-    .limit(25);
+    .limit(50);
 
   if (error) {
     console.error("Load planned trips error:", error);
     return [];
   }
 
-  return (data || []).map((row) => ({
-    id: row.id,
-    supabase_id: row.id,
-    user_id: row.user_id,
-    campgroundName: row.title || "Planned Trip",
-    location: row.location || "",
-    entryType: "planned",
-    privacy: row.privacy || "private",
-    startDate: row.start_date || null,
-    endDate: row.end_date || null,
-    cover: row.cover_photo || "",
-  }));
+  return (data || [])
+    .filter((row) => row.entry_type === "planned" || row.trip_data?.entryType === "planned")
+    .map((row) => {
+      const t = row.trip_data || {};
+      return {
+        ...t,
+        id: row.id,
+        supabase_id: row.id,
+        user_id: row.user_id,
+        campgroundName: t.campgroundName || t.campground || row.title || "Planned Trip",
+        campground: t.campground || t.campgroundName || row.title || "Planned Trip",
+        location: t.location || row.location || "",
+        entryType: "planned",
+        privacy: row.privacy || t.privacy || "private",
+        startDate: row.start_date || t.startDate || null,
+        endDate: row.end_date || t.endDate || null,
+        created_at: row.created_at,
+        cover: row.cover_photo || previewSrc(t.cover) || "",
+      };
+    });
 }
 
 async function savePlannedTripToSupabase(plan) {
@@ -420,16 +456,14 @@ async function savePlannedTripToSupabase(plan) {
     location: cleanPlan.location || "",
     user_id: user.id,
 
-    // Summary columns for fast loading
     entry_type: "planned",
     privacy: cleanPlan.privacy || "private",
     photo_count: 0,
     preview_photos: [],
-    cover_photo: "",
+    cover_photo: previewSrc(cleanPlan.cover) || "",
     start_date: cleanPlan.startDate || null,
     end_date: cleanPlan.endDate || null,
 
-    // Full details only load when needed later
     trip_data: cleanPlan,
   };
 
@@ -441,7 +475,7 @@ async function savePlannedTripToSupabase(plan) {
     .from("trips")
     .upsert([row])
     .select(
-      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, start_date, end_date"
+      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, start_date, end_date, trip_data"
     )
     .single();
 
@@ -450,18 +484,22 @@ async function savePlannedTripToSupabase(plan) {
     return null;
   }
 
+  const t = data.trip_data || cleanPlan;
+
   return {
-    ...cleanPlan,
+    ...t,
     id: data.id,
     supabase_id: data.id,
     user_id: data.user_id,
-    campgroundName: data.title || cleanPlan.campgroundName || "Planned Trip",
-    location: data.location || cleanPlan.location || "",
+    campgroundName: t.campgroundName || data.title || "Planned Trip",
+    campground: t.campground || t.campgroundName || data.title || "Planned Trip",
+    location: t.location || data.location || "",
     entryType: "planned",
-    privacy: data.privacy || cleanPlan.privacy || "private",
-    startDate: data.start_date || cleanPlan.startDate || null,
-    endDate: data.end_date || cleanPlan.endDate || null,
-    cover: data.cover_photo || "",
+    privacy: data.privacy || t.privacy || "private",
+    startDate: data.start_date || t.startDate || null,
+    endDate: data.end_date || t.endDate || null,
+    cover: data.cover_photo || previewSrc(t.cover) || "",
+    created_at: data.created_at,
   };
 }
 
@@ -515,15 +553,14 @@ async function loadFriendsFeedFromSupabase() {
     (profiles || []).map((p) => [p.id, p])
   );
 
-  // Fast feed load: no trip_data. Feed cards only need summary columns.
+  // Friends feed can pull trip_data because it only loads after opening the Friends tab.
+  // This keeps login fast while restoring rich friend cards and full detail previews.
   const { data, error } = await supabase
     .from("trips")
     .select(
-      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, photo_count, preview_photos, start_date, end_date"
+      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, photo_count, preview_photos, start_date, end_date, trip_data"
     )
     .in("user_id", friendIds)
-    .neq("entry_type", "planned")
-    .neq("privacy", "private")
     .order("created_at", { ascending: false })
     .limit(25);
 
@@ -532,39 +569,55 @@ async function loadFriendsFeedFromSupabase() {
     return [];
   }
 
-  return (data || []).map((trip) => {
-    const profile = profilesById?.[trip.user_id];
-    const previewPhotos = Array.isArray(trip.preview_photos)
-      ? trip.preview_photos
-      : [];
+  return (data || [])
+    .filter((trip) => {
+      const t = trip.trip_data || {};
+      return trip.entry_type !== "planned" && t.entryType !== "planned" && (trip.privacy || t.privacy) !== "private";
+    })
+    .map((trip) => {
+      const t = trip.trip_data || {};
+      const profile = profilesById?.[trip.user_id];
+      const fullPhotos = Array.isArray(t.photos)
+        ? t.photos
+        : Array.isArray(t.images)
+        ? t.images
+        : [];
+      const previewPhotos = Array.isArray(trip.preview_photos) && trip.preview_photos.length
+        ? trip.preview_photos
+        : fullPhotos.slice(0, 3);
+      const photoCount = Number(trip.photo_count || fullPhotos.length || previewPhotos.length || 0);
 
-    return {
-      supabase_id: trip.id,
-      id: trip.id,
-      user_id: trip.user_id,
-      campground: trip.title || "",
-      campgroundName: trip.title || "",
-      location: trip.location || "",
-      created_at: trip.created_at,
-      entryType: trip.entry_type || "memory",
-      privacy: trip.privacy || "friends",
-      startDate: trip.start_date || null,
-      endDate: trip.end_date || null,
-      previewPhotos,
-      photos: previewPhotos,
-      hasFullPhotos: (trip.photo_count || 0) > previewPhotos.length,
-      cover: trip.cover_photo || previewSrc(previewPhotos[0]) || "",
-      photoCount: trip.photo_count || previewPhotos.length,
-      userName: profile?.display_name || profile?.email || "Camper",
-      userAvatar: "🏕️",
-      userColor: "#2F5D50",
-      notes: "",
-      rating: 0,
-      timeAgo: "Shared trip",
-    };
-  });
+      return {
+        ...t,
+        supabase_id: trip.id,
+        id: trip.id,
+        user_id: trip.user_id,
+        campground: t.campground || t.campgroundName || trip.title || "",
+        campgroundName: t.campgroundName || t.campground || trip.title || "",
+        location: t.location || trip.location || "",
+        created_at: trip.created_at,
+        entryType: trip.entry_type || t.entryType || "memory",
+        privacy: trip.privacy || t.privacy || "friends",
+        startDate: trip.start_date || t.startDate || null,
+        endDate: trip.end_date || t.endDate || null,
+        previewPhotos,
+        photos: previewPhotos,
+        hasFullPhotos: photoCount > previewPhotos.length,
+        cover:
+          trip.cover_photo ||
+          previewSrc(t.cover) ||
+          previewSrc(previewPhotos[0]) ||
+          "",
+        photoCount,
+        userName: t.userName || profile?.display_name || profile?.email || "Camper",
+        userAvatar: t.userAvatar || "🏕️",
+        userColor: t.userColor || "#2F5D50",
+        notes: t.notes || "",
+        rating: t.rating || 0,
+        timeAgo: "Shared trip",
+      };
+    });
 }
-
 
 async function ensureProfile(displayNameOverride = "") {
   const {
@@ -9369,7 +9422,7 @@ export default function CampBook() {
       setData((d) => ({
         ...d,
         entries: trips,
-        plannedTrips: plannedTrips.length ? plannedTrips : d.plannedTrips || [],
+        plannedTrips: plannedTrips || [],
         friends: friendships,
       }));
     } finally {
@@ -10024,6 +10077,7 @@ useEffect(() => {
   onApproveFriend={approveFriend}
   searchProfiles={searchProfiles}
   sendFriendRequest={sendFriendRequest}
+  loadFullTrip={loadFullTripFromSupabase}
   setSelectedTrip={setSelectedTrip}
   P={P}
   S={S}
