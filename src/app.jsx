@@ -5755,16 +5755,19 @@ entries.forEach((e) => {
         const ep = profiles.filter((p) => entry.who?.includes(p.id));
         const sd = entry.siteDetails || {};
         const rawFishLog =
-    entry.fishingLog ||
-    entry.fishingSpots ||
-    entry.fishLog ||
-    entry.fishingSessions ||
-    entry.fishingEntries ||
-    [];
-  const fishLog = Array.isArray(rawFishLog)
-    ? rawFishLog
-    : Object.values(rawFishLog || {}).flat();
-        const fishCount = fishLog.reduce((s, f) => s + Math.max(0, Number(f.count) || 0), 0);
+          entry.fishingLog ||
+          entry.fishingSpots ||
+          entry.fishLog ||
+          entry.fishingSessions ||
+          entry.fishingEntries ||
+          [];
+        const fishLog = Array.isArray(rawFishLog)
+          ? rawFishLog
+          : Object.values(rawFishLog || {}).flat();
+        const fishCount = fishLog.reduce(
+          (s, f) => s + Math.max(0, Number(f.count) || 0),
+          0
+        );
         const sdTags = [
           sd.toiletType,
           sd.waterType,
@@ -5772,13 +5775,38 @@ entries.forEach((e) => {
           sd.pets,
           sd.waterProximity,
         ].filter(Boolean);
+
         const cover = getTripCover(entry);
+        const previewPhotos = entry.previewPhotos || entry.photos || [];
         const coverImage =
           previewSrc(entry.cover) ||
           previewSrc(entry.cover_photo) ||
-          previewSrc(entry.photos?.[0]) ||
-          previewSrc(entry.previewPhotos?.[0]) ||
+          previewSrc(previewPhotos?.[0]) ||
           "";
+
+        const photoCount = Number(entry.photoCount || previewPhotos.length || 0);
+        const nights =
+          entry.startDate && entry.endDate
+            ? Math.round(
+                (new Date(entry.endDate) - new Date(entry.startDate)) / 864e5
+              )
+            : 0;
+        const dateLine = entry.startDate
+          ? entry.endDate
+            ? `${niceDate(entry.startDate)} → ${niceDate(entry.endDate)}`
+            : niceDate(entry.startDate)
+          : entry.created_at
+          ? `Logged ${niceDate(String(entry.created_at).slice(0, 10))}`
+          : "";
+        const privacyLabel =
+          entry.privacy === "private"
+            ? "🔒 Private"
+            : entry.privacy === "friends"
+            ? "👥 Friends"
+            : entry.privacy === "link"
+            ? "🔗 Link"
+            : "👥 Friends";
+
         return (
           <div
             key={entry.id}
@@ -5787,14 +5815,24 @@ entries.forEach((e) => {
               const fullEntry = rowId ? await loadFullTripFromSupabase(rowId) : null;
               setDetailEntry(fullEntry || entry);
             }}
-            style={{ ...S.card, cursor: "pointer" }}
+            style={{
+              ...S.card,
+              cursor: "pointer",
+              borderRadius: 18,
+              overflow: "hidden",
+              boxShadow: "0 8px 24px rgba(42,31,20,0.12)",
+              border: `1px solid ${P.border}`,
+              background: P.card,
+            }}
           >
             <div
               style={{
-                ...S.hdrCard(cover.c1, cover.c2),
-                display: "flex",
-                gap: 12,
-                alignItems: "flex-start",
+                position: "relative",
+                minHeight: coverImage ? 158 : 142,
+                background: coverImage
+                  ? "#111"
+                  : `linear-gradient(135deg,${cover.c1},${cover.c2})`,
+                overflow: "hidden",
               }}
             >
               {coverImage ? (
@@ -5806,268 +5844,391 @@ entries.forEach((e) => {
                     e.currentTarget.style.display = "none";
                   }}
                   style={{
-                    width: 58,
-                    height: 58,
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
                     objectFit: "cover",
-                    borderRadius: 12,
-                    border: "2px solid rgba(255,255,255,0.62)",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-                    background: "rgba(255,255,255,0.18)",
-                    flexShrink: 0,
+                    filter: "saturate(1.03)",
                   }}
                 />
               ) : (
-                <span
+                <div
                   style={{
-                    fontSize: 32,
-                    width: 58,
-                    height: 58,
-                    borderRadius: 12,
+                    position: "absolute",
+                    inset: 0,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: "rgba(255,255,255,0.18)",
-                    border: "2px solid rgba(255,255,255,0.42)",
-                    flexShrink: 0,
+                    fontSize: 58,
+                    opacity: 0.9,
                   }}
                 >
                   {cover.emoji}
-                </span>
+                </div>
               )}
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{ fontSize: 16, fontWeight: 800, color: "#FFFFFF", textShadow: "0 1px 3px rgba(0,0,0,0.75)" }}
-                >
-                  {entry.campgroundName}
-                </div>
-                <div style={{ fontSize: 12, color: "#F4EFE6", marginTop: 1, fontWeight: 700, textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
-                  {entry.location}
-                </div>
-                <div style={{ fontSize: 12, color: "#F4EFE6", marginTop: 1, fontWeight: 700, textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
-                  {entry.startDate &&
-                    (entry.endDate
-                      ? `🗓 ${niceDate(entry.startDate)} → ${niceDate(
-                          entry.endDate
-                        )}`
-                      : `🗓 ${niceDate(entry.startDate)}`)}
-                  {entry.siteNumber && ` · Site #${entry.siteNumber}`}
-                </div>
-                <div
+
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.18) 42%, rgba(0,0,0,0.78) 100%)",
+                }}
+              />
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  left: 10,
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  maxWidth: "72%",
+                }}
+              >
+                <span
                   style={{
-                    marginTop: 5,
-                    display: "flex",
-                    gap: 5,
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                  }}
-                >
-                  {entry.rating > 0 && <Stars n={entry.rating} size={13} />}
-                  {entry.returnWorthy === true && (
-                    <Tag label="✅ Return" color="#CFFFD8" small />
-                  )}
-                  {entry.returnWorthy === false && (
-                    <Tag label="❌ Skip" color="#FFD1D1" small />
-                  )}
-                  {entry.weather && (
-                    <Tag label={entry.weather} color="#F4EFE6" small />
-                  )}
-                  {entry.totalCost && (
-                    <Tag
-                      label={`$${(+entry.totalCost).toLocaleString()}`}
-                      color="#FFE7A3"
-                      small
-                    />
-                  )}
-                  {entry.mileage && (
-                    <Tag
-                      label={`🚗 ${entry.mileage} mi`}
-                      color="#F4EFE6"
-                      small
-                    />
-                  )}
-                  {entry.gasCost && (
-                    <Tag label={`⛽ $${entry.gasCost}`} color="#FFE7A3" small />
-                  )}
-                  {entry.privacy && (
-                    <Tag
-                      label={
-                        entry.privacy === "private"
-                          ? "🔒 Private"
-                          : entry.privacy === "friends"
-                          ? "👥 Friends"
-                          : "🔗 Link"
-                      }
-                      color="#F4EFE6"
-                      small
-                    />
-                  )}
-                  {fishCount > 0 && (
-                    <Tag label={`🎣 ${fishCount} fish`} color="#F4EFE6" small />
-                  )}
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShareEntry(entry); }}
-                  style={{
-                    background: "#ffffff22",
-                    border: "none",
-                    color: "#fff",
-                    borderRadius: 7,
-                    padding: "3px 7px",
-                    cursor: "pointer",
+                    background: "rgba(255,255,255,0.9)",
+                    color: P.forest,
+                    borderRadius: 999,
+                    padding: "4px 9px",
                     fontSize: 11,
+                    fontWeight: 900,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.16)",
                   }}
                 >
-                  📤
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
+                  {cover.label}
+                </span>
+                <span
                   style={{
-                    background: "#ffffff22",
-                    border: "none",
-                    color: "#fff",
-                    borderRadius: 7,
-                    padding: "3px 7px",
-                    cursor: "pointer",
-                    fontSize: 12,
+                    background: "rgba(255,255,255,0.88)",
+                    color: P.forest,
+                    borderRadius: 999,
+                    padding: "4px 9px",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.16)",
                   }}
                 >
-                  ✏️
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRename?.(entry); }}
-                  title="Rename trip"
-                  style={{
-                    background: "#ffffff22",
-                    border: "none",
-                    color: "#fff",
-                    borderRadius: 7,
-                    padding: "3px 7px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                  }}
-                >
-                  🏷️
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(entry); }}
-                  style={{
-                    background: "#ffffff22",
-                    border: "none",
-                    color: "#fff",
-                    borderRadius: 7,
-                    padding: "3px 7px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                  }}
-                >
-                  🗑
-                </button>
+                  {privacyLabel}
+                </span>
               </div>
-            </div>
-            <div style={{ padding: "10px 14px 12px" }}>
-              {ep.length > 0 && (
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  display: "flex",
+                  gap: 5,
+                }}
+              >
+                {[
+                  { label: "📤", title: "Share", fn: () => setShareEntry(entry) },
+                  { label: "✏️", title: "Edit", fn: () => onEdit(entry) },
+                  { label: "🏷️", title: "Rename", fn: () => onRename?.(entry) },
+                  { label: "🗑", title: "Delete", fn: () => onDelete(entry) },
+                ].map((btn) => (
+                  <button
+                    key={btn.title}
+                    title={btn.title}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      btn.fn();
+                    }}
+                    style={{
+                      width: 29,
+                      height: 29,
+                      borderRadius: 999,
+                      border: "1px solid rgba(255,255,255,0.36)",
+                      background: "rgba(0,0,0,0.36)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backdropFilter: "blur(5px)",
+                    }}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  right: 14,
+                  bottom: 13,
+                  color: "#fff",
+                }}
+              >
                 <div
                   style={{
-                    display: "flex",
-                    gap: 5,
-                    marginBottom: 8,
-                    flexWrap: "wrap",
+                    fontSize: 20,
+                    fontWeight: 950,
+                    lineHeight: 1.08,
+                    textShadow: "0 2px 7px rgba(0,0,0,0.9)",
+                    marginBottom: 4,
                   }}
                 >
-                  {ep.map((p) => (
-                    <Tag
-                      key={p.id}
-                      label={`${p.emoji} ${p.name}`}
-                      color={p.color}
-                      small
-                    />
-                  ))}
+                  {entry.campgroundName || "Untitled Trip"}
                 </div>
-              )}
-              {entry.notes && (
-                <p
+                <div
                   style={{
                     fontSize: 13,
-                    lineHeight: 1.8,
-                    fontStyle: "italic",
-                    color: P.text,
-                    margin: "0 0 8px",
+                    fontWeight: 800,
+                    color: "#F4EFE6",
+                    textShadow: "0 1px 5px rgba(0,0,0,0.85)",
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
                   }}
                 >
-                  "{entry.notes}"
-                </p>
+                  {entry.location && <span>📍 {entry.location}</span>}
+                  {dateLine && <span>🗓 {dateLine}</span>}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: "11px 13px 13px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gap: 7,
+                  marginBottom: 10,
+                }}
+              >
+                {[
+                  {
+                    label: "Nights",
+                    value: nights > 0 ? nights : "—",
+                    icon: "🌙",
+                  },
+                  {
+                    label: "Photos",
+                    value: photoCount > 0 ? photoCount : "—",
+                    icon: "📷",
+                  },
+                  {
+                    label: "Fish",
+                    value: fishCount > 0 ? fishCount : "—",
+                    icon: "🎣",
+                  },
+                  {
+                    label: "Site",
+                    value: entry.siteNumber || "—",
+                    icon: "🏕️",
+                  },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    style={{
+                      background: P.bg,
+                      border: `1px solid ${P.border}`,
+                      borderRadius: 11,
+                      padding: "7px 5px",
+                      textAlign: "center",
+                      minWidth: 0,
+                    }}
+                  >
+                    <div style={{ fontSize: 14 }}>{stat.icon}</div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 900,
+                        color: P.forest,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {stat.value}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: P.muted,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 5,
+                  marginBottom:
+                    ep.length ||
+                    entry.rating > 0 ||
+                    entry.returnWorthy !== undefined ||
+                    entry.weather ||
+                    entry.totalCost ||
+                    sdTags.length
+                      ? 10
+                      : 0,
+                }}
+              >
+                {entry.rating > 0 && <Stars n={entry.rating} size={13} />}
+                {entry.returnWorthy === true && (
+                  <Tag label="✅ Would return" color={P.pine} small />
+                )}
+                {entry.returnWorthy === false && (
+                  <Tag label="❌ Skip next time" color={P.red} small />
+                )}
+                {entry.weather && <Tag label={entry.weather} color={P.water} small />}
+                {entry.totalCost && (
+                  <Tag
+                    label={`💰 $${(+entry.totalCost).toLocaleString()}`}
+                    color={P.amber}
+                    small
+                  />
+                )}
+                {entry.mileage && (
+                  <Tag label={`🚗 ${entry.mileage} mi`} color={P.earth} small />
+                )}
+                {ep.map((p) => (
+                  <Tag
+                    key={p.id}
+                    label={`${p.emoji} ${p.name}`}
+                    color={p.color}
+                    small
+                  />
+                ))}
+                {sdTags.slice(0, 3).map((t) => (
+                  <Tag key={t} label={t} color={P.teal} small />
+                ))}
+              </div>
+
+              {entry.notes ? (
+                <div
+                  style={{
+                    background: "#fff",
+                    border: `1px solid ${P.border}`,
+                    borderRadius: 12,
+                    padding: "9px 10px",
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    color: P.text,
+                    marginBottom: 10,
+                  }}
+                >
+                  <span style={{ color: P.muted }}>📝 </span>
+                  {entry.notes.length > 135
+                    ? `${entry.notes.slice(0, 135)}...`
+                    : entry.notes}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: "#fff",
+                    border: `1px dashed ${P.border}`,
+                    borderRadius: 12,
+                    padding: "9px 10px",
+                    fontSize: 12,
+                    color: P.muted,
+                    marginBottom: 10,
+                  }}
+                >
+                  Tap to view the full trip details, photos, fishing spots, and notes.
+                </div>
               )}
+
               {fishLog.length > 0 && (
                 <div
                   style={{
                     background: "#EEF5F7",
-                    borderRadius: 9,
-                    padding: "8px 10px",
-                    marginBottom: 8,
+                    borderRadius: 12,
+                    padding: "9px 10px",
+                    marginBottom: 10,
                     border: `1px solid ${P.water}22`,
                   }}
                 >
                   <div
                     style={{
                       fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
+                      fontWeight: 900,
+                      letterSpacing: "0.12em",
                       textTransform: "uppercase",
                       color: P.water,
                       marginBottom: 6,
                     }}
                   >
-                    🎣 Fishing Log
+                    🎣 Fishing Snapshot
                   </div>
-                  {fishLog.slice(0, 3).map((f) => {
-                    const spotName = f.spotName || f.spot || f.location || "Fishing Spot";
+                  {fishLog.slice(0, 2).map((f, i) => {
+                    const spotName =
+                      f.spotName || f.spot || f.location || "Fishing Spot";
                     return (
-                      <div key={f.id} style={{ fontSize: 13, marginBottom: 6 }}>
-                        <div style={{ fontWeight: 800, color: P.forest }}>
-                          📍 {spotName}
-                        </div>
-                        <div style={{ color: P.muted, marginTop: 1 }}>
-                          {Math.max(0, Number(f.count) || 0)}× {f.species || "Fish"}
-                          {f.bait ? ` — ${f.bait}` : ""}
-                        </div>
+                      <div key={f.id || i} style={{ fontSize: 13, marginBottom: 5 }}>
+                        <strong style={{ color: P.forest }}>📍 {spotName}</strong>
+                        <span style={{ color: P.muted }}>
+                          {" "}
+                          · {Math.max(0, Number(f.count) || 0)}×{" "}
+                          {f.species || "fish"}
+                          {f.bait ? ` · ${f.bait}` : ""}
+                        </span>
                       </div>
                     );
                   })}
-                  {fishLog.length > 3 && (
-                    <div style={{ fontSize: 11, color: P.muted, marginTop: 4 }}>
-                      +{fishLog.length - 3} more catch entries
+                  {fishLog.length > 2 && (
+                    <div style={{ fontSize: 11, color: P.muted }}>
+                      +{fishLog.length - 2} more catch entries
                     </div>
                   )}
                 </div>
               )}
-              {(entry.previewPhotos || entry.photos || []).length > 0 && (
+
+              {previewPhotos.length > 0 && (
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(3,1fr)",
-                    gap: 4,
+                    gridTemplateColumns:
+                      previewPhotos.length === 1 ? "1fr" : "1.2fr 1fr 1fr",
+                    gap: 5,
                     marginBottom: 10,
                   }}
                 >
-                  {(entry.previewPhotos || entry.photos || []).slice(0, 3).map((p, photoCardIndex) => (
+                  {previewPhotos.slice(0, 3).map((p, photoCardIndex) => (
                     <div
                       key={p.id || previewSrc(p) || photoCardIndex}
                       onClick={async (e) => {
                         e.stopPropagation();
                         const rowId = entry.supabase_id || entry.id;
-                        const fullEntry = rowId ? await loadFullTripFromSupabase(rowId) : entry;
-                        const fullPhotos = (fullEntry?.photos || entry.photos || []).map((x) => fullSrc(x)).filter(Boolean);
+                        const fullEntry = rowId
+                          ? await loadFullTripFromSupabase(rowId)
+                          : entry;
+                        const fullPhotos = (
+                          fullEntry?.photos ||
+                          entry.photos ||
+                          []
+                        )
+                          .map((x) => fullSrc(x))
+                          .filter(Boolean);
                         if (!fullPhotos.length) return;
                         setViewerPhotos(fullPhotos);
-                        setViewerIndex(Math.min(photoCardIndex, fullPhotos.length - 1));
+                        setViewerIndex(
+                          Math.min(photoCardIndex, fullPhotos.length - 1)
+                        );
                       }}
                       style={{
-                        aspectRatio: "1",
-                        borderRadius: 7,
+                        height: photoCardIndex === 0 ? 92 : 92,
+                        borderRadius: 11,
                         overflow: "hidden",
                         cursor: "pointer",
+                        position: "relative",
+                        border: `1px solid ${P.border}`,
                       }}
                     >
                       <CachedImage
@@ -6080,125 +6241,43 @@ entries.forEach((e) => {
                           objectFit: "cover",
                         }}
                       />
-                    </div>
-                  ))}
-                </div>
-              )}
-              {sdTags.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 5,
-                    marginBottom: 8,
-                  }}
-                >
-                  {sdTags.map((t) => (
-                    <Tag key={t} label={t} color={P.teal} small />
-                  ))}
-                  {sd.cleanRestrooms && (
-                    <Tag label="✓ Clean Restrooms" color={P.teal} small />
-                  )}
-                </div>
-              )}
-              {sd.nearbyActivities?.length > 0 && (
-                <div
-                  style={{
-                    background: P.cream,
-                    borderRadius: 8,
-                    padding: "7px 10px",
-                    marginBottom: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: P.muted,
-                      marginBottom: 5,
-                    }}
-                  >
-                    🥾 Nearby
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {sd.nearbyActivities.map((a) => (
-                      <Tag key={a} label={a} color={P.pine} small />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {sd.albumName && (
-                <div style={{ fontSize: 12, color: P.water, marginBottom: 8 }}>
-                  📸 Album: <strong>{sd.albumName}</strong>
-                </div>
-              )}
-              {entry.memorySpots?.length > 0 && (
-                <div
-                  style={{
-                    background: "#EEF5F7",
-                    borderRadius: 9,
-                    padding: "8px 10px",
-                    marginBottom: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: P.water,
-                      marginBottom: 6,
-                    }}
-                  >
-                    📍 Remembered Spots
-                  </div>
-                  {entry.memorySpots.slice(0, 3).map((m, i) => (
-                    <div key={i} style={{ fontSize: 13, marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, color: P.forest }}>
-                        {m.title}
-                      </span>
-                      {m.note && (
-                        <span style={{ color: P.muted }}> — {m.note}</span>
+                      {photoCardIndex === 2 && photoCount > 3 && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: "rgba(0,0,0,0.45)",
+                            color: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 900,
+                            fontSize: 15,
+                          }}
+                        >
+                          +{photoCount - 3}
+                        </div>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-              {entry.wishlist?.length > 0 && (
-                <div
-                  style={{
-                    background: P.cream,
-                    borderRadius: 9,
-                    padding: "8px 10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: P.amber,
-                      marginBottom: 6,
-                    }}
-                  >
-                    ⭐ Wishlist for next time
-                  </div>
-                  {entry.wishlist.map((w, i) => (
-                    <div key={i} style={{ fontSize: 13, marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, color: P.forest }}>
-                        Site #{w.site}
-                      </span>
-                      {w.note && (
-                        <span style={{ color: P.muted }}> — {w.note}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderTop: `1px solid ${P.border}`,
+                  paddingTop: 9,
+                  color: P.muted,
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                <span>Tap to open trip journal</span>
+                <span style={{ color: P.pine }}>View details →</span>
+              </div>
             </div>
           </div>
         );
