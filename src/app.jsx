@@ -456,6 +456,8 @@ async function savePlannedTripToSupabase(plan) {
     location: cleanPlan.location || "",
     user_id: user.id,
 
+    // These summary columns make planned trips show on Home fast,
+    // without loading the whole trip_data blob.
     entry_type: "planned",
     privacy: cleanPlan.privacy || "private",
     photo_count: 0,
@@ -464,20 +466,34 @@ async function savePlannedTripToSupabase(plan) {
     start_date: cleanPlan.startDate || null,
     end_date: cleanPlan.endDate || null,
 
+    // Full planner details stay here and load only when needed.
     trip_data: cleanPlan,
   };
 
-  if (plan.supabase_id) {
-    row.id = plan.supabase_id;
+  const selectColumns =
+    "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, start_date, end_date, trip_data";
+
+  const existingId = plan.supabase_id || (String(plan.id || "").startsWith("plan") ? null : plan.id);
+
+  let result;
+
+  if (existingId) {
+    result = await supabase
+      .from("trips")
+      .update(row)
+      .eq("id", existingId)
+      .eq("user_id", user.id)
+      .select(selectColumns)
+      .single();
+  } else {
+    result = await supabase
+      .from("trips")
+      .insert([row])
+      .select(selectColumns)
+      .single();
   }
 
-  const { data, error } = await supabase
-    .from("trips")
-    .upsert([row])
-    .select(
-      "id, user_id, title, location, created_at, cover_photo, entry_type, privacy, start_date, end_date, trip_data"
-    )
-    .single();
+  const { data, error } = result;
 
   if (error) {
     alert("Planned trip save failed: " + error.message);
@@ -6243,79 +6259,6 @@ entries.forEach((e) => {
                 </div>
               )}
 
-              {previewPhotos.length > 0 && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      previewPhotos.length === 1 ? "1fr" : "1.2fr 1fr 1fr",
-                    gap: 5,
-                    marginBottom: 10,
-                  }}
-                >
-                  {previewPhotos.slice(0, 3).map((p, photoCardIndex) => (
-                    <div
-                      key={p.id || previewSrc(p) || photoCardIndex}
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const rowId = entry.supabase_id || entry.id;
-                        const fullEntry = rowId
-                          ? await loadFullTripFromSupabase(rowId)
-                          : entry;
-                        const fullPhotos = (
-                          fullEntry?.photos ||
-                          entry.photos ||
-                          []
-                        )
-                          .map((x) => fullSrc(x))
-                          .filter(Boolean);
-                        if (!fullPhotos.length) return;
-                        setViewerPhotos(fullPhotos);
-                        setViewerIndex(
-                          Math.min(photoCardIndex, fullPhotos.length - 1)
-                        );
-                      }}
-                      style={{
-                        height: photoCardIndex === 0 ? 92 : 92,
-                        borderRadius: 11,
-                        overflow: "hidden",
-                        cursor: "pointer",
-                        position: "relative",
-                        border: `1px solid ${P.border}`,
-                      }}
-                    >
-                      <CachedImage
-                        src={previewSrc(p)}
-                        loading="lazy"
-                        alt=""
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                      {photoCardIndex === 2 && photoCount > 3 && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: "rgba(0,0,0,0.45)",
-                            color: "#fff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: 900,
-                            fontSize: 15,
-                          }}
-                        >
-                          +{photoCount - 3}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
               <div
                 style={{
                   display: "flex",
@@ -9564,6 +9507,12 @@ useEffect(() => {
 
   const savePlannedTrip = async (plan) => {
     const saved = await savePlannedTripToSupabase(plan);
+    if (!saved) return null;
+
+    // Immediately refresh from Supabase so Home and Plan tabs stay in sync.
+    const plannedTrips = await loadPlannedTripsFromSupabase();
+    setPlannedTrips(plannedTrips);
+
     return saved;
   };
 
