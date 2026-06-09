@@ -367,25 +367,6 @@ function FriendTripCard({ trip, P, onClick }) {
           )}
         </div>
 
-        {photos.length > 1 && (
-          <div style={{ display: "flex", gap: 5, marginTop: 11 }}>
-            {photos.slice(0, 3).map((photo, i) => (
-              <img
-                key={i}
-                src={previewSrc(photo)}
-                loading="lazy"
-                alt=""
-                style={{
-                  width: `${100 / Math.min(photos.length, 3)}%`,
-                  height: 62,
-                  objectFit: "cover",
-                  borderRadius: 12,
-                  border: `1px solid ${P.border}`,
-                }}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
