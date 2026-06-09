@@ -5623,6 +5623,7 @@ function TripEntryDetailModal({ entry, onClose, onEdit, onRename, onDelete, prof
 
 const JournalView = ({ entries, onAdd, onEdit, onRename, onDelete, profiles }) => {
   const [filter, setFilter] = useState("all");
+  const [visibleTripCount, setVisibleTripCount] = useState(5);
   const [shareEntry, setShareEntry] = useState(null);
   const [viewerPhotos, setViewerPhotos] = useState([]);
 const [viewerIndex, setViewerIndex] = useState(null);
@@ -5680,6 +5681,12 @@ const [campSearchLoading, setCampSearchLoading] = useState(false);
     if (filter === "family") return e.who?.length > 1;
     return true;
   });
+  const visibleTrips = filtered.slice(0, visibleTripCount);
+
+  useEffect(() => {
+    setVisibleTripCount(5);
+  }, [filter, entries.length]);
+
   const totalCost = entries.reduce((s, e) => s + (+e.totalCost || 0), 0);
   const totalNights = entries.reduce((s, e) => {
     if (e.startDate && e.endDate) {
@@ -5820,7 +5827,7 @@ entries.forEach((e) => {
           </div>
         </div>
       )}
-      {filtered.map((entry) => {
+      {visibleTrips.map((entry) => {
         const ep = profiles.filter((p) => entry.who?.includes(p.id));
         const sd = entry.siteDetails || {};
         const rawFishLog =
@@ -6278,6 +6285,42 @@ entries.forEach((e) => {
           </div>
         );
       })}
+
+      {filtered.length > visibleTripCount && (
+        <button
+          onClick={() => setVisibleTripCount((n) => n + 5)}
+          style={{
+            width: "100%",
+            margin: "2px 0 14px",
+            padding: "12px 14px",
+            borderRadius: 999,
+            border: `1.5px solid ${P.border}`,
+            background: "#fff",
+            color: P.forest,
+            fontWeight: 900,
+            fontSize: 13,
+            cursor: "pointer",
+            fontFamily: "'Lora',Georgia,serif",
+            boxShadow: "0 3px 10px rgba(60,42,22,0.08)",
+          }}
+        >
+          Show More Trips ({Math.min(5, filtered.length - visibleTripCount)} more)
+        </button>
+      )}
+
+      {filtered.length > 5 && visibleTripCount >= filtered.length && (
+        <div
+          style={{
+            textAlign: "center",
+            color: P.muted,
+            fontSize: 12,
+            margin: "0 0 14px",
+          }}
+        >
+          You’re caught up on your trips.
+        </div>
+      )}
+
       {detailEntry && (
         <TripEntryDetailModal
           entry={detailEntry}
