@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 function previewSrc(photo) {
   if (!photo) return "";
@@ -387,6 +387,11 @@ export default function FriendsView({
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [loadingTripId, setLoadingTripId] = useState(null);
+  const [visibleFeedCount, setVisibleFeedCount] = useState(5);
+
+  useEffect(() => {
+    setVisibleFeedCount(5);
+  }, [feedEntries.length]);
 
   const pending = friends.filter((f) => f.status === "pending");
 
@@ -576,7 +581,7 @@ export default function FriendsView({
               No shared trips yet.
             </div>
           ) : (
-            feedEntries.map((trip) => (
+            feedEntries.slice(0, visibleFeedCount).map((trip) => (
               <div key={trip.supabase_id || trip.id} style={{ position: "relative" }}>
                 <FriendTripCard trip={trip} P={P} onClick={() => openTrip(trip)} />
                 {loadingTripId === trip.id && (
@@ -598,6 +603,41 @@ export default function FriendsView({
                 )}
               </div>
             ))
+          )}
+
+          {feedEntries.length > visibleFeedCount && (
+            <button
+              onClick={() => setVisibleFeedCount((n) => n + 5)}
+              style={{
+                width: "100%",
+                marginTop: 4,
+                padding: "12px 14px",
+                borderRadius: 999,
+                border: `1.5px solid ${P.border}`,
+                background: "#fff",
+                color: P.forest,
+                fontWeight: 900,
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "'Lora',Georgia,serif",
+                boxShadow: "0 3px 10px rgba(60,42,22,0.08)",
+              }}
+            >
+              Show More Trips ({Math.min(5, feedEntries.length - visibleFeedCount)} more)
+            </button>
+          )}
+
+          {feedEntries.length > 5 && visibleFeedCount >= feedEntries.length && (
+            <div
+              style={{
+                textAlign: "center",
+                color: P.muted,
+                fontSize: 12,
+                marginTop: 8,
+              }}
+            >
+              You’re caught up on shared trips.
+            </div>
           )}
         </div>
       </div>
